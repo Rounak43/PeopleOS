@@ -1,7 +1,3 @@
-/**
- * PeopleOS — Attendance Service
- */
-
 const Attendance = require('../models/Attendance');
 const Employee = require('../models/Employee');
 const { buildPaginationMeta } = require('../utils/pagination');
