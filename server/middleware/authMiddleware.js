@@ -13,27 +13,44 @@ const authenticate = async (req, res, next) => {
       return next();
     }
 
-    const userIdHeader = req.headers['x-user-id'];
-    const roleHeader = req.headers['x-user-role'];
-    const employeeIdHeader = req.headers['x-employee-id'];
+    let targetUserId = req.headers['x-user-id'];
+    const authHeader = req.headers['authorization'];
 
-    if (userIdHeader) {
-      const user = await User.findById(userIdHeader).select('-passwordHash');
-      if (user) {
-        req.user = {
-          id: user._id.toString(),
-          _id: user._id,
-          email: user.email,
-          role: user.role,
-          employeeId: user.employeeId ? user.employeeId.toString() : null,
-        };
-        return next();
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      // Token format: session_<userId>_<timestamp>
+      if (token && token.startsWith('session_')) {
+        const parts = token.split('_');
+        if (parts.length >= 2 && parts[1].length === 24) {
+          targetUserId = parts[1];
+        }
       }
     }
 
-    // Default or header-specified user context for RBAC testing
+    if (targetUserId && targetUserId.length === 24) {
+      try {
+        const user = await User.findById(targetUserId).select('-passwordHash');
+        if (user && user.isActive) {
+          req.user = {
+            id: user._id.toString(),
+            _id: user._id,
+            email: user.email,
+            role: user.role,
+            employeeId: user.employeeId ? user.employeeId.toString() : null,
+          };
+          return next();
+        }
+      } catch {
+        // Continue to headers or fallback
+      }
+    }
+
+    const roleHeader = req.headers['x-user-role'];
+    const employeeIdHeader = req.headers['x-employee-id'];
+
+    // Header-specified or default user context for testing
     req.user = {
-      id: userIdHeader || '000000000000000000000001',
+      id: targetUserId || '000000000000000000000001',
       role: roleHeader || 'admin',
       employeeId: employeeIdHeader || null,
       email: 'admin@peopleos.local',

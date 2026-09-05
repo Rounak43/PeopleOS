@@ -1,0 +1,497 @@
+/* =====================================================
+   AegisFlow — Employee Portal Dedicated Stylesheet
+   Pixel-perfect match to user's reference screenshot
+   ===================================================== */
+
+/* ── Hero Welcome Banner ── */
+.aegis-welcome-banner {
+  background: linear-gradient(135deg, #FDE3CC 0%, #FEE8D6 40%, #FDF4EA 75%, #FAF4EE 100%);
+  border: 1px solid #F6D6BC;
+  border-radius: 22px;
+  padding: 24px 30px;
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 20px -2px rgba(251, 146, 60, 0.07);
+}
+
+/* Subtle decorative wave / glow overlay */
+.aegis-welcome-banner::after {
+  content: '';
+  position: absolute;
+  right: -60px;
+  top: -60px;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(253, 224, 196, 0.5) 0%, rgba(255, 255, 255, 0) 70%);
+  pointer-events: none;
+}
+
+.aegis-welcome-left {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  position: relative;
+  z-index: 1;
+}
+
+.aegis-avatar-box {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  border: 1.5px solid #F6D6BC;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 21px;
+  font-weight: 600;
+  color: #1C1917;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  flex-shrink: 0;
+  text-transform: lowercase;
+}
+
+.aegis-welcome-title {
+  font-size: 21px;
+  font-weight: 700;
+  color: #1C1917;
+  margin-bottom: 4px;
+  letter-spacing: -0.015em;
+}
+
+.aegis-welcome-sub {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #57534E;
+  margin-bottom: 8px;
+}
+
+.aegis-live-time-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #FCE1CB;
+  border: 1px solid #F8D0AF;
+  border-radius: 9999px;
+  padding: 3px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #78350F;
+  letter-spacing: 0.2px;
+}
+
+.aegis-live-clock-icon {
+  color: #D97706;
+  display: flex;
+  align-items: center;
+}
+
+.aegis-welcome-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+  z-index: 1;
+  flex-wrap: wrap;
+}
+
+/* Welcome Action Buttons */
+.btn-shift-completed {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #D1FAE5;
+  border: 1px solid #A7F3D0;
+  color: #065F46;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 18px;
+  border-radius: 10px;
+  cursor: default;
+}
+
+.btn-request-reentry {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #FDF9F5;
+  border: 1px solid #D6BC9F;
+  color: #78350F;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 18px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-request-reentry:hover {
+  background-color: #F8EEDB;
+}
+
+.btn-aegis-checkin {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #F59E0B;
+  border: 1px solid #D97706;
+  color: #FFFFFF;
+  font-size: 13.5px;
+  font-weight: 700;
+  padding: 9px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+  transition: all 0.15s ease;
+}
+
+.btn-aegis-checkin:hover {
+  background-color: #D97706;
+}
+
+.btn-aegis-checkout {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #DC2626;
+  border: 1px solid #B91C1C;
+  color: #FFFFFF;
+  font-size: 13.5px;
+  font-weight: 700;
+  padding: 9px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.25);
+  transition: all 0.15s ease;
+}
+
+.btn-aegis-checkout:hover {
+  background-color: #B91C1C;
+}
+
+/* ── 4 KPI Metric Cards ── */
+.aegis-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 1024px) {
+  .aegis-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 540px) {
+  .aegis-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.aegis-kpi-card {
+  background: #FFFFFF;
+  border: 1px solid #EAE5DE;
+  border-radius: 18px;
+  padding: 20px 22px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 125px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.aegis-kpi-card:hover {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+}
+
+.aegis-kpi-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.aegis-kpi-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #78716C;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.aegis-kpi-icon-badge {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #FDF4EC;
+  border: 1px solid #FBE7D7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  color: #B45309;
+}
+
+.aegis-kpi-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.aegis-kpi-status-present {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #D97706;
+}
+
+.aegis-kpi-val-number {
+  font-size: 26px;
+  font-weight: 700;
+  color: #1C1917;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.aegis-kpi-subtext {
+  font-size: 12px;
+  font-weight: 600;
+  color: #57534E;
+  margin-top: 2px;
+}
+
+.aegis-kpi-ot-tag {
+  color: #D97706;
+  font-weight: 700;
+}
+
+/* ── Lower Two-Column Section ── */
+.aegis-bottom-grid {
+  display: grid;
+  grid-template-columns: 1.55fr 1fr;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 960px) {
+  .aegis-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.aegis-chart-card,
+.aegis-holidays-card {
+  background: #FFFFFF;
+  border: 1px solid #EAE5DE;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+}
+
+.aegis-chart-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.aegis-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1C1917;
+  letter-spacing: -0.01em;
+}
+
+.aegis-section-sub {
+  font-size: 12px;
+  color: #78716C;
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.aegis-chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.aegis-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: #57534E;
+  font-weight: 600;
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.legend-dot.present { background-color: #F59E0B; }
+.legend-dot.active  { background-color: #FDE8D6; }
+.legend-dot.absent  { background-color: #D1D5DB; }
+
+.aegis-total-hours-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1C1917;
+  margin-left: 4px;
+}
+
+/* Bar Chart Graphic */
+.aegis-bar-chart-container {
+  height: 180px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  padding: 10px 10px 0;
+  border-bottom: 1px solid #F5EFEB;
+}
+
+.aegis-bar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+  gap: 10px;
+  width: 48px;
+}
+
+.aegis-bar-pill {
+  width: 38px;
+  border-radius: 12px;
+  transition: height 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.aegis-bar-pill.orange {
+  background: #F97316;
+}
+
+.aegis-bar-pill.cream {
+  background: #FCE4D0;
+}
+
+.aegis-bar-pill.gray {
+  background: #D1D5DB;
+  border-radius: 8px;
+}
+
+.aegis-day-indicator-capsule {
+  width: 22px;
+  height: 6px;
+  border-radius: 9999px;
+  background-color: #D97706;
+}
+
+.aegis-day-indicator-capsule.gray {
+  background-color: #9CA3AF;
+}
+
+.aegis-day-labels {
+  display: flex;
+  justify-content: space-around;
+  padding-top: 8px;
+}
+
+.aegis-col-label-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 48px;
+}
+
+.aegis-day-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1C1917;
+}
+
+.aegis-day-date {
+  font-size: 11px;
+  color: #78716C;
+  font-weight: 500;
+}
+
+/* Holidays List */
+.aegis-holidays-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.aegis-holiday-item {
+  background: #FDF9F5;
+  border: 1px solid #F6E7D8;
+  border-radius: 14px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: all 0.15s ease;
+}
+
+.aegis-holiday-item:hover {
+  background: #FCEBDC;
+}
+
+.aegis-holiday-date-badge {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: #FCE1CB;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #78350F;
+  flex-shrink: 0;
+}
+
+.holiday-badge-month {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  line-height: 1;
+}
+
+.holiday-badge-day {
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.aegis-holiday-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.aegis-holiday-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #1C1917;
+}
+
+.aegis-holiday-sub {
+  font-size: 11.5px;
+  color: #78716C;
+  font-weight: 500;
+  margin-top: 1px;
+}

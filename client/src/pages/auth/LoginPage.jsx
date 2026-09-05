@@ -21,13 +21,15 @@ const LoginPage = () => {
   const validateForm = () => {
     setErrorMessage('');
     if (!email || !email.trim()) {
-      setErrorMessage('Email address is required.');
+      setErrorMessage(isSignUp ? 'Email address is required.' : 'Email address or Employee ID is required.');
       return false;
     }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setErrorMessage('Please enter a valid email address.');
-      return false;
+    if (isSignUp) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+        setErrorMessage('Please enter a valid email address.');
+        return false;
+      }
     }
     if (!password) {
       setErrorMessage('Password is required.');
@@ -53,22 +55,32 @@ const LoginPage = () => {
     setInfoMessage('');
 
     try {
+      let authUser = null;
       if (isSignUp) {
-        await signup({
+        const res = await signup({
           email: email.trim(),
           password,
           role: 'employee',
         });
+        authUser = res?.user;
         setInfoMessage('Account created successfully! Redirecting...');
       } else {
-        await signin({
+        const res = await signin({
           email: email.trim(),
+          identifier: email.trim(),
           password,
         });
+        authUser = res?.user;
       }
+
+      const role = authUser?.role || 'employee';
       setTimeout(() => {
-        navigate('/hr/employees');
-      }, 500);
+        if (role === 'employee') {
+          navigate('/employee/dashboard');
+        } else {
+          navigate('/hr/employees');
+        }
+      }, 300);
     } catch (error) {
       console.error('Authentication error:', error);
       if (error.status === 401) {
@@ -141,19 +153,19 @@ const LoginPage = () => {
 
         {/* Form */}
         <form className="login-form" onSubmit={handleSubmit}>
-          {/* Email Field */}
+          {/* Email / Employee ID Field */}
           <div className="form-group">
             <label htmlFor="email" className="form-label">
-              Email Address <span className="required-star">*</span>
+              {isSignUp ? 'Email Address' : 'Email Address or Employee ID'} <span className="required-star">*</span>
             </label>
             <input
               id="email"
-              type="email"
+              type="text"
               className="form-input"
-              placeholder="name@peopleos.com"
+              placeholder={isSignUp ? 'name@peopleos.com' : 'name@peopleos.com or EMP-001'}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
+              autoComplete="username"
               disabled={isSubmitting}
             />
           </div>

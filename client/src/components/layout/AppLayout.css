@@ -3,7 +3,7 @@
 .app-layout {
   display: flex;
   min-height: 100vh;
-  background: var(--color-bg);
+  background: #FAF4EE;
 }
 
 .app-layout-main {
@@ -12,12 +12,14 @@
   flex-direction: column;
   min-width: 0;  /* prevent flex overflow */
   overflow: hidden;
+  background: #FAF4EE;
 }
 
 .app-layout-content {
   flex: 1;
-  padding: var(--spacing-xl);
+  padding: 0 32px 32px 24px;
   overflow-y: auto;
+  background: #FAF4EE;
 }
 
 /* ── Common state containers — used by all pages ── */

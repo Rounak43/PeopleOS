@@ -5,6 +5,8 @@
 const express = require('express');
 const { mongoose } = require('../config/db');
 
+const authRoutes = require('./authRoutes');
+const employeePortalRoutes = require('./employeePortalRoutes');
 const departmentRoutes = require('./departmentRoutes');
 const jobPositionRoutes = require('./jobPositionRoutes');
 const workingScheduleRoutes = require('./workingScheduleRoutes');
@@ -30,6 +32,12 @@ router.get('/health', (req, res) => {
     database: isConnected ? 'connected' : 'disconnected',
   });
 });
+
+// ─────────────────────────────────────────────
+// Authentication & Employee Portal Routes
+// ─────────────────────────────────────────────
+router.use('/auth', authRoutes);
+router.use('/employee', employeePortalRoutes);
 
 // ─────────────────────────────────────────────
 // HR Management Routes
