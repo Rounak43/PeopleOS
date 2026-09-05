@@ -136,7 +136,7 @@ const checkOut = async (attendanceId) => {
   return await attendance.save();
 };
 
-const correctAttendance = async (attendanceId, { checkIn: newCheckIn, checkOut: newCheckOut, status, notes }, userId) => {
+const correctAttendance = async (attendanceId, { checkIn: newCheckIn, checkOut: newCheckOut, status, notes, workedHours: customWorkedHours }, userId) => {
   const attendance = await Attendance.findById(attendanceId);
   if (!attendance) {
     const err = new Error('Attendance record not found');
@@ -147,8 +147,8 @@ const correctAttendance = async (attendanceId, { checkIn: newCheckIn, checkOut: 
   const cIn = newCheckIn ? new Date(newCheckIn) : attendance.checkIn;
   const cOut = newCheckOut ? new Date(newCheckOut) : attendance.checkOut;
 
-  let workedHours = attendance.workedHours;
-  if (cIn && cOut) {
+  let workedHours = customWorkedHours !== undefined && customWorkedHours !== null ? Number(customWorkedHours) : attendance.workedHours;
+  if (customWorkedHours === undefined && cIn && cOut) {
     if (cOut <= cIn) {
       const err = new Error('Check-out time must be after check-in time');
       err.statusCode = 400;
@@ -162,7 +162,7 @@ const correctAttendance = async (attendanceId, { checkIn: newCheckIn, checkOut: 
   attendance.checkOut = cOut;
   attendance.workedHours = workedHours;
   if (status) attendance.status = status;
-  if (notes) attendance.notes = notes;
+  if (notes !== undefined) attendance.notes = notes;
 
   attendance.isManualCorrection = true;
   attendance.correctedBy = userId || null;
