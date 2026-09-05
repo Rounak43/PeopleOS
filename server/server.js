@@ -2,6 +2,7 @@ require('dotenv').config();
 
 const app = require('./app');
 const { connectDB } = require('./config/db');
+const { seedInitialData } = require('./config/seedData');
 
 const PORT = parseInt(process.env.PORT, 10) || 5000;
 
@@ -9,6 +10,7 @@ const startServer = async () => {
   console.log('  PeopleOS API Server — Starting...');
   try {
     await connectDB();
+    await seedInitialData();
   } catch (err) {
     console.error('[FATAL] Cannot connect to MongoDB database:');
     console.error(`        ${err.message}`);
