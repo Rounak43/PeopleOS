@@ -3,7 +3,7 @@
  * Top bar displayed above the main content area.
  */
 import React from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import './Header.css';
 
 // Map route segments to readable page titles
@@ -15,16 +15,18 @@ const PAGE_TITLES = {
   '/hr/contracts':           'Contracts',
   '/hr/attendance':          'Attendance',
   '/hr/time-off':            'Time Off',
-  '/payroll/salary-structures': 'Salary Structures',
-  '/payroll/salary-rules':      'Salary Rules',
-  '/payroll/payruns':           'Payruns',
-  '/payroll/payslips':          'Payslips',
-  '/payroll/dashboard':         'Payroll Dashboard',
 };
 
 const Header = () => {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const title = PAGE_TITLES[pathname] || 'PeopleOS';
+
+  const handleLogout = () => {
+    localStorage.removeItem('peopleos_token');
+    localStorage.removeItem('peopleos_user');
+    navigate('/login');
+  };
 
   return (
     <header className="app-header">
@@ -32,11 +34,15 @@ const Header = () => {
         <h1 className="app-header-title">{title}</h1>
       </div>
       <div className="app-header-right">
-        {/* Auth context will be wired by Member 1 */}
-        <div className="header-user-placeholder">
+        <button
+          type="button"
+          className="header-user-placeholder"
+          onClick={handleLogout}
+          title="Click to sign out and return to Login page"
+        >
           <span className="header-avatar">👤</span>
-          <span className="header-username">User</span>
-        </div>
+          <span className="header-username">Sign Out</span>
+        </button>
       </div>
     </header>
   );

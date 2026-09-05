@@ -4,7 +4,6 @@
  */
 import React, { useEffect } from 'react';
 import './Modal.css';
-import Button from './Button';
 
 const Modal = ({
   isOpen,
