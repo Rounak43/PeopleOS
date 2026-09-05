@@ -3,8 +3,8 @@
  * Shared by all authenticated pages.
  * HR modules owned by Member 2. Payroll modules by Member 3.
  */
-import React, { useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import React from 'react';
+import { NavLink } from 'react-router-dom';
 import './Sidebar.css';
 
 const HR_LINKS = [
