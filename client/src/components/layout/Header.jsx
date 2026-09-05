@@ -15,11 +15,6 @@ const PAGE_TITLES = {
   '/hr/contracts':           'Contracts',
   '/hr/attendance':          'Attendance',
   '/hr/time-off':            'Time Off',
-  '/payroll/salary-structures': 'Salary Structures',
-  '/payroll/salary-rules':      'Salary Rules',
-  '/payroll/payruns':           'Payruns',
-  '/payroll/payslips':          'Payslips',
-  '/payroll/dashboard':         'Payroll Dashboard',
 };
 
 const Header = () => {
@@ -32,7 +27,6 @@ const Header = () => {
         <h1 className="app-header-title">{title}</h1>
       </div>
       <div className="app-header-right">
-        {/* Auth context will be wired by Member 1 */}
         <div className="header-user-placeholder">
           <span className="header-avatar">👤</span>
           <span className="header-username">User</span>

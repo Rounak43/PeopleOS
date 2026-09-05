@@ -1,9 +1,10 @@
-/* PeopleOS — Sidebar styles */
+/* PeopleOS — Sidebar styles (Light Orange & White Minimal Theme) */
 
 .sidebar {
   width: var(--sidebar-width);
   min-height: 100vh;
-  background: var(--color-sidebar-bg);
+  background: #FFFFFF;
+  border-right: 1px solid #E4E4E7;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -17,8 +18,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 20px 20px 16px;
-  border-bottom: 1px solid rgba(255,255,255,0.07);
+  padding: 22px 20px 18px;
+  border-bottom: 1px solid #E4E4E7;
 }
 
 .sidebar-brand-icon { font-size: 22px; }
@@ -26,50 +27,49 @@
 .sidebar-brand-name {
   font-size: var(--font-size-lg);
   font-weight: 700;
-  color: #ffffff;
-  letter-spacing: -0.3px;
+  color: #18181B;
+  letter-spacing: -0.02em;
 }
 
 /* ── Navigation ── */
-.sidebar-nav { flex: 1; padding: 12px 0; }
+.sidebar-nav { flex: 1; padding: 16px 0; }
 
-.sidebar-section { margin-bottom: 4px; }
+.sidebar-section { margin-bottom: 8px; }
 
 .sidebar-section-label {
   display: block;
-  padding: 10px 20px 4px;
+  padding: 10px 20px 6px;
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 1px;
+  letter-spacing: 1.2px;
   text-transform: uppercase;
-  color: rgba(199, 210, 254, 0.45);
+  color: #A1A1AA;
 }
 
 .sidebar-link {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 20px;
-  color: var(--color-sidebar-text);
+  padding: 10px 20px;
+  color: #52525B;
   font-size: var(--font-size-sm);
-  font-weight: 400;
+  font-weight: 500;
   text-decoration: none;
-  transition: all 0.15s ease;
-  border-radius: 0;
+  transition: var(--transition);
   cursor: pointer;
 }
 
 .sidebar-link:hover {
-  background: var(--color-sidebar-hover);
-  color: #ffffff;
+  background: #FFF4ED;
+  color: #EB5E12;
   text-decoration: none;
 }
 
 .sidebar-link--active {
-  background: rgba(79, 70, 229, 0.3);
-  color: #ffffff;
-  font-weight: 500;
-  border-right: 3px solid var(--color-primary-light);
+  background: #FFF4ED;
+  color: #EB5E12;
+  font-weight: 600;
+  border-right: 3px solid #EB5E12;
 }
 
 .sidebar-link-icon { font-size: 15px; flex-shrink: 0; }
@@ -77,11 +77,11 @@
 
 /* ── Footer ── */
 .sidebar-footer {
-  padding: 14px 20px;
-  border-top: 1px solid rgba(255,255,255,0.07);
+  padding: 16px 20px;
+  border-top: 1px solid #E4E4E7;
 }
 
 .sidebar-footer-text {
   font-size: var(--font-size-xs);
-  color: rgba(199, 210, 254, 0.35);
+  color: #A1A1AA;
 }

@@ -1,13 +1,17 @@
-/* Styles for Department and Employee Management Pages */
+/* Styles for Department and Employee Management Pages — Warm Minimalist Enterprise Theme */
 
 .filters-toolbar {
-  padding: 16px;
+  padding: 16px 20px;
   margin-bottom: 20px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
 .search-box {
@@ -33,38 +37,41 @@
 }
 
 .emp-avatar-icon {
-  font-size: 22px;
-  background: var(--color-bg);
-  width: 36px;
-  height: 36px;
+  font-size: 20px;
+  background: var(--color-primary-subtle);
+  color: var(--color-primary);
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 1px solid #FFEDD5;
 }
 
 .emp-sub-text {
   font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
 }
 
 .dept-code-tag {
-  background: var(--color-primary-bg);
-  color: var(--color-primary-dark);
-  padding: 3px 8px;
-  border-radius: var(--radius-sm);
+  background: var(--color-primary-subtle);
+  color: var(--color-primary);
+  padding: 3px 10px;
+  border-radius: 9999px;
   font-size: var(--font-size-xs);
   font-weight: 600;
-  font-family: monospace;
+  border: 1px solid #FFEDD5;
 }
 
 .emp-id-tag {
-  background: var(--color-bg);
+  background: var(--color-subtle);
   color: var(--color-text);
-  padding: 2px 6px;
+  padding: 3px 8px;
   border-radius: var(--radius-sm);
   font-size: var(--font-size-xs);
   font-family: monospace;
+  border: 1px solid var(--color-border);
 }
 
 .btn-link {
@@ -77,25 +84,28 @@
   text-align: left;
   font-size: var(--font-size-sm);
   font-family: inherit;
+  transition: var(--transition);
 }
 .btn-link:hover {
+  color: var(--color-primary-hover);
   text-decoration: underline;
 }
 
 .btn-badge-link {
-  background: var(--color-primary-bg);
-  border: 1px solid #c7d2fe;
-  color: var(--color-primary-dark);
+  background: var(--color-primary-subtle);
+  border: 1px solid #FFEDD5;
+  color: var(--color-primary);
   font-size: var(--font-size-xs);
   font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 20px;
+  padding: 4px 12px;
+  border-radius: 9999px;
   cursor: pointer;
   transition: var(--transition);
 }
 .btn-badge-link:hover {
-  background: var(--color-primary-light);
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--color-text-on-primary);
+  border-color: var(--color-primary);
 }
 
 .actions-cell {
@@ -132,8 +142,8 @@
   font-size: var(--font-size-sm);
   margin-bottom: 16px;
   background: var(--color-danger-bg);
-  color: #dc2626;
-  border: 1px solid #fca5a5;
+  color: #DC2626;
+  border: 1px solid #FCA5A5;
 }
 
 /* Detail Card & Profile Styles */
@@ -155,14 +165,16 @@
 
 .dept-icon-lg,
 .profile-avatar-lg {
-  font-size: 40px;
-  background: var(--color-primary-bg);
-  width: 60px;
-  height: 60px;
+  font-size: 36px;
+  background: var(--color-primary-subtle);
+  color: var(--color-primary);
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 1px solid #FFEDD5;
 }
 
 .detail-rows {
@@ -175,7 +187,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 0;
+  padding: 8px 0;
   border-bottom: 1px dashed var(--color-border);
   font-size: var(--font-size-sm);
 }
@@ -197,7 +209,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   margin-bottom: 10px;
 }
 
@@ -216,6 +228,7 @@
   align-items: center;
   padding: 8px 12px;
   background: var(--color-bg);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);
 }
