@@ -1,6 +1,3 @@
-/**
- * PeopleOS — Centralized Error Handling Middleware
- */
 
 const { sendError } = require('../utils/apiResponse');
 

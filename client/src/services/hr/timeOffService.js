@@ -1,8 +1,4 @@
-/**
- * PeopleOS — Time Off Service
- * Member 2 (HR Frontend) — API communication only, no business logic.
- * Leave balance calculations belong to the backend.
- */
+
 import http from '../common/http';
 
 const TYPES = '/api/time-off/types';

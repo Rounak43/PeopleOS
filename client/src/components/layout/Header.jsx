@@ -4,6 +4,7 @@
  */
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import useAuth from '../../hooks/useAuth';
 import './Header.css';
 
 // Map route segments to readable page titles
@@ -20,11 +21,11 @@ const PAGE_TITLES = {
 const Header = () => {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const title = PAGE_TITLES[pathname] || 'PeopleOS';
 
-  const handleLogout = () => {
-    localStorage.removeItem('peopleos_token');
-    localStorage.removeItem('peopleos_user');
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 
@@ -41,7 +42,9 @@ const Header = () => {
           title="Click to sign out and return to Login page"
         >
           <span className="header-avatar">👤</span>
-          <span className="header-username">Sign Out</span>
+          <span className="header-username">
+            {user?.name || user?.email || 'User'} (Sign Out)
+          </span>
         </button>
       </div>
     </header>

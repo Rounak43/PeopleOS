@@ -1,30 +1,92 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import useAuth from '../../hooks/useAuth';
 import './LoginPage.css';
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const { signin, signup } = useAuth();
 
+  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [errorMessage, setErrorMessage] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
 
-  const handleSubmit = (e) => {
+  const validateForm = () => {
+    setErrorMessage('');
+    if (!email || !email.trim()) {
+      setErrorMessage('Email address is required.');
+      return false;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setErrorMessage('Please enter a valid email address.');
+      return false;
+    }
+    if (!password) {
+      setErrorMessage('Password is required.');
+      return false;
+    }
+    if (password.length < 6) {
+      setErrorMessage('Password must be at least 6 characters long.');
+      return false;
+    }
+    if (isSignUp && password !== confirmPassword) {
+      setErrorMessage('Passwords do not match.');
+      return false;
+    }
+    return true;
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Persist login token and user session for PeopleOS
-    localStorage.setItem('peopleos_token', 'session_' + Date.now());
-    localStorage.setItem(
-      'peopleos_user',
-      JSON.stringify({
-        email: email || 'name@peopleos.com',
-        name: email ? email.split('@')[0] : 'Administrator',
-        role: 'Admin',
-      })
-    );
-    navigate('/hr/employees');
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+    setErrorMessage('');
+    setInfoMessage('');
+
+    try {
+      if (isSignUp) {
+        await signup({
+          email: email.trim(),
+          password,
+          role: 'employee',
+        });
+        setInfoMessage('Account created successfully! Redirecting...');
+      } else {
+        await signin({
+          email: email.trim(),
+          password,
+        });
+      }
+      setTimeout(() => {
+        navigate('/hr/employees');
+      }, 500);
+    } catch (error) {
+      console.error('Authentication error:', error);
+      if (error.status === 401) {
+        setErrorMessage('Invalid email or password.');
+      } else if (error.status === 409) {
+        setErrorMessage('An account with this email address already exists.');
+      } else if (error.status === 403) {
+        setErrorMessage("You don't have permission to perform this action.");
+      } else if (error.status === 400) {
+        setErrorMessage(error.data?.message || 'Invalid input details provided.');
+      } else if (error.status === 500) {
+        setErrorMessage('Server error occurred. Please try again later.');
+      } else {
+        setErrorMessage(error.message || 'Unable to connect to the authentication server.');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleForgotPassword = (e) => {
@@ -33,10 +95,13 @@ const LoginPage = () => {
     setTimeout(() => setInfoMessage(''), 4000);
   };
 
-  const handleSignUp = (e) => {
+  const toggleMode = (e) => {
     e.preventDefault();
-    setInfoMessage('Registration is managed by your organization HR administrator.');
-    setTimeout(() => setInfoMessage(''), 4000);
+    setIsSignUp(!isSignUp);
+    setErrorMessage('');
+    setInfoMessage('');
+    setPassword('');
+    setConfirmPassword('');
   };
 
   return (
@@ -50,21 +115,31 @@ const LoginPage = () => {
           <p className="brand-tagline">HR &amp; Payroll Management System</p>
         </div>
 
-        {/* Sign In Header */}
+        {/* Header */}
         <div className="login-header">
-          <h2 className="login-title">Sign In</h2>
+          <h2 className="login-title">{isSignUp ? 'Create Account' : 'Sign In'}</h2>
           <p className="login-subtitle">
-            Sign in with your email and password to access your portal
+            {isSignUp
+              ? 'Fill in your details below to create your PeopleOS user account'
+              : 'Sign in with your email and password to access your portal'}
           </p>
         </div>
 
+        {/* Error Banner */}
+        {errorMessage && (
+          <div className="login-info-banner error-banner" style={{ backgroundColor: '#fee2e2', color: '#991b1b', border: '1px solid #f87171' }} role="alert">
+            {errorMessage}
+          </div>
+        )}
+
+        {/* Info Banner */}
         {infoMessage && (
           <div className="login-info-banner" role="alert">
             {infoMessage}
           </div>
         )}
 
-        {/* Login Form */}
+        {/* Form */}
         <form className="login-form" onSubmit={handleSubmit}>
           {/* Email Field */}
           <div className="form-group">
@@ -79,6 +154,7 @@ const LoginPage = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
+              disabled={isSubmitting}
             />
           </div>
 
@@ -88,13 +164,16 @@ const LoginPage = () => {
               <label htmlFor="password" className="form-label">
                 Password <span className="required-star">*</span>
               </label>
-              <button
-                type="button"
-                className="forgot-password-btn"
-                onClick={handleForgotPassword}
-              >
-                Forgot password?
-              </button>
+              {!isSignUp && (
+                <button
+                  type="button"
+                  className="forgot-password-btn"
+                  onClick={handleForgotPassword}
+                  disabled={isSubmitting}
+                >
+                  Forgot password?
+                </button>
+              )}
             </div>
 
             <div className="password-input-wrapper">
@@ -105,13 +184,15 @@ const LoginPage = () => {
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
+                autoComplete={isSignUp ? 'new-password' : 'current-password'}
+                disabled={isSubmitting}
               />
               <button
                 type="button"
                 className="password-toggle-btn"
                 onClick={() => setShowPassword(!showPassword)}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
+                disabled={isSubmitting}
               >
                 {showPassword ? (
                   <svg
@@ -146,31 +227,59 @@ const LoginPage = () => {
             </div>
           </div>
 
-          {/* Remember Me Checkbox */}
-          <div className="remember-me-group">
-            <label className="checkbox-label-wrapper">
+          {/* Confirm Password Field (Sign Up Mode) */}
+          {isSignUp && (
+            <div className="form-group">
+              <label htmlFor="confirmPassword" className="form-label">
+                Confirm Password <span className="required-star">*</span>
+              </label>
               <input
-                type="checkbox"
-                className="custom-checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
+                id="confirmPassword"
+                type="password"
+                className="form-input"
+                placeholder="Re-enter your password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                autoComplete="new-password"
+                disabled={isSubmitting}
               />
-              <span className="checkbox-text">Keep me signed in for 30 days</span>
-            </label>
-          </div>
+            </div>
+          )}
 
-          {/* Sign In Button */}
-          <button type="submit" className="submit-signin-btn">
-            SIGN IN
+          {/* Remember Me Checkbox (Sign In Mode) */}
+          {!isSignUp && (
+            <div className="remember-me-group">
+              <label className="checkbox-label-wrapper">
+                <input
+                  type="checkbox"
+                  className="custom-checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  disabled={isSubmitting}
+                />
+                <span className="checkbox-text">Keep me signed in for 30 days</span>
+              </label>
+            </div>
+          )}
+
+          {/* Submit Button */}
+          <button type="submit" className="submit-signin-btn" disabled={isSubmitting}>
+            {isSubmitting
+              ? isSignUp
+                ? 'Creating account...'
+                : 'Signing in...'
+              : isSignUp
+              ? 'SIGN UP'
+              : 'SIGN IN'}
           </button>
         </form>
 
         {/* Footer */}
         <div className="login-footer">
           <p className="signup-prompt">
-            Don't have an account?{' '}
-            <button type="button" className="signup-link" onClick={handleSignUp}>
-              Sign Up
+            {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+            <button type="button" className="signup-link" onClick={toggleMode} disabled={isSubmitting}>
+              {isSignUp ? 'Sign In' : 'Sign Up'}
             </button>
           </p>
         </div>
