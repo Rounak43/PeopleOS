@@ -18,11 +18,13 @@ const createContract = async (req, res, next) => {
 const getContracts = async (req, res, next) => {
   try {
     const pagination = getPagination(req);
-    const { employeeId, status, startDate, endDate } = req.query;
+    const { employeeId, status, durationType, search, startDate, endDate } = req.query;
 
     const result = await contractService.getContracts({
       employeeId,
       status,
+      durationType,
+      search,
       startDate,
       endDate,
       page: pagination.page,

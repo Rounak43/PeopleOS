@@ -67,6 +67,11 @@ const createContract = async (data) => {
       err.statusCode = 400;
       throw err;
     }
+    if (data.departmentId && jobPos.departmentId.toString() !== data.departmentId.toString()) {
+      const err = new Error('Selected job position does not belong to the selected department');
+      err.statusCode = 400;
+      throw err;
+    }
   }
 
   if (data.workingScheduleId) {
@@ -78,26 +83,41 @@ const createContract = async (data) => {
     }
   }
 
-  const status = data.status || 'draft';
+  const status = data.status || 'active';
 
   if (status === 'active') {
     const isOverlapping = await checkContractOverlap(data.employeeId, data.startDate, data.endDate);
     if (isOverlapping) {
-      const err = new Error('An active contract already exists for this employee in the specified date range');
-      err.statusCode = 400;
+      const err = new Error('This employee already has an overlapping active contract.');
+      err.statusCode = 409;
       throw err;
     }
   }
 
+  if (!data.contractCode) {
+    data.contractCode = `CTR-${Date.now().toString().slice(-6)}`;
+  }
+
+  data.status = status;
   const contract = new Contract(data);
   return await contract.save();
 };
 
-const getContracts = async ({ employeeId, status, startDate, endDate, page = 1, limit = 20, skip = 0 }) => {
+const getContracts = async ({ employeeId, status, durationType, search, startDate, endDate, page = 1, limit = 20, skip = 0 }) => {
   const query = {};
 
   if (employeeId) query.employeeId = employeeId;
   if (status) query.status = status;
+  if (durationType) query.durationType = durationType;
+
+  if (search) {
+    const searchRegex = new RegExp(search.trim(), 'i');
+    query.$or = [
+      { contractCode: searchRegex },
+      { durationType: searchRegex },
+      { workLocation: searchRegex },
+    ];
+  }
 
   if (startDate || endDate) {
     query.startDate = {};
@@ -107,13 +127,14 @@ const getContracts = async ({ employeeId, status, startDate, endDate, page = 1, 
 
   const [items, total] = await Promise.all([
     Contract.find(query)
-      .populate('employeeId', 'fullName employeeCode')
+      .collation({ locale: 'en', numericOrdering: true })
+      .populate('employeeId', 'fullName email employeeCode firstName lastName')
       .populate('departmentId', 'name')
       .populate('jobPositionId', 'title')
       .populate('workingScheduleId', 'name')
       .skip(skip)
       .limit(limit)
-      .sort({ createdAt: -1 }),
+      .sort({ contractCode: 1, createdAt: 1 }),
     Contract.countDocuments(query),
   ]);
 

@@ -217,7 +217,108 @@ const seedInitialData = async () => {
     console.log('[Seed] ✓ Successfully seeded User accounts (passwords: admin123 / password123)!');
   }
 
-  // 7b. Seed Samarth Suryavamshi (exact match to user request & screenshot)
+  // 7b. Seed EMP-001 (Alexandra Chen) if missing
+  let emp001 = await Employee.findOne({ employeeCode: 'EMP-001' });
+  if (!emp001) {
+    let engDept = await Department.findOne({ name: 'Engineering' });
+    if (!engDept) engDept = await Department.create({ name: 'Engineering' });
+    let posLead = await JobPosition.findOne({ title: 'Engineering Lead' });
+    if (!posLead) posLead = await JobPosition.create({ title: 'Engineering Lead', departmentId: engDept._id });
+    let schedule = await WorkingSchedule.findOne({});
+    if (!schedule) {
+      schedule = await WorkingSchedule.create({
+        name: 'Standard 35h Workweek',
+        type: 'full_time',
+        totalWeeklyHours: 35,
+        lines: [],
+      });
+    }
+
+    emp001 = await Employee.create({
+      employeeCode: 'EMP-001',
+      fullName: 'Alexandra Chen',
+      email: 'alexandra.chen@peopleos.local',
+      phone: '+1 415 555 0101',
+      address: '742 Evergreen Terrace, San Francisco, CA',
+      departmentId: engDept._id,
+      jobPositionId: posLead._id,
+      workingScheduleId: schedule._id,
+      status: 'active',
+    });
+
+    let u001 = await User.findOne({ email: emp001.email });
+    if (!u001) {
+      u001 = await User.create({
+        email: emp001.email.toLowerCase(),
+        passwordHash: hashPassword('password123'),
+        role: 'employee',
+        employeeId: emp001._id,
+        isActive: true,
+      });
+    }
+    emp001.userId = u001._id;
+    await emp001.save();
+    console.log('[Seed] ✓ Seeded EMP-001 Alexandra Chen!');
+  }
+
+  let contract001 = await Contract.findOne({ employeeId: emp001._id });
+  if (!contract001) {
+    let engDept = await Department.findOne({ name: 'Engineering' });
+    let posLead = await JobPosition.findOne({ title: 'Engineering Lead' });
+    let schedule = await WorkingSchedule.findOne({});
+    contract001 = await Contract.create({
+      employeeId: emp001._id,
+      departmentId: engDept?._id,
+      jobPositionId: posLead?._id,
+      workingScheduleId: schedule?._id,
+      startDate: new Date('2026-01-01'),
+      endDate: new Date('2026-12-31'),
+      wage: 125000,
+      status: 'active',
+    });
+  }
+
+  let vacType = await TimeOffType.findOne({ name: 'Paid Vacation' });
+  if (!vacType) vacType = await TimeOffType.create({ name: 'Paid Vacation', unit: 'days', requiresAllocation: true });
+  let alloc001 = await TimeOffAllocation.findOne({ employeeId: emp001._id });
+  if (!alloc001) {
+    await TimeOffAllocation.create({
+      employeeId: emp001._id,
+      timeOffTypeId: vacType._id,
+      allocatedAmount: 20,
+      takenAmount: 2,
+      remainingAmount: 18,
+      status: 'approved',
+    });
+  }
+
+  let ps001 = await Payslip.findOne({ employee: emp001._id });
+  if (!ps001) {
+    let payrun = await Payrun.findOne({});
+    if (!payrun) {
+      payrun = await Payrun.create({
+        name: 'January 2026 Standard Payrun',
+        periodStart: new Date('2026-01-01'),
+        periodEnd: new Date('2026-01-31'),
+        state: 'Done',
+      });
+    }
+    await Payslip.create({
+      payrun: payrun._id,
+      employee: emp001._id,
+      contract: contract001._id,
+      grossPay: 10416.67,
+      netPay: 8125.00,
+      state: 'Paid',
+      lines: [
+        { code: 'BASIC', name: 'Basic Monthly Salary', category: 'Earnings', amount: 10416.67 },
+        { code: 'TAX', name: 'Federal & State Income Tax', category: 'Deductions', amount: -1875.00 },
+        { code: 'HEALTH', name: 'Health & Dental Insurance', category: 'Deductions', amount: -416.67 },
+      ],
+    });
+  }
+
+  // 7c. Seed Samarth Suryavamshi (exact match to user request & screenshot)
   let samarth = await Employee.findOne({ employeeCode: 'EMP-01JOHN20260001' });
   if (!samarth) {
     const engDept = await Department.findOne({ name: 'Engineering' });

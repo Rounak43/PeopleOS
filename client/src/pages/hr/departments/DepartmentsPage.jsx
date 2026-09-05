@@ -100,19 +100,36 @@ const DepartmentsPage = () => {
     return matchesSearch && matchesStatus;
   });
 
-  // Calculate employee counts per department name/id
-  const getDeptEmployeeCount = (dept) => {
-    if (typeof dept.employeeCount === 'number') return dept.employeeCount;
-    return employees.filter(
-      (e) => e.department === dept.name || e.departmentId === dept.id
-    ).length;
+  // Code mapping helper for standard IT departments
+  const getDeptCode = (dept) => {
+    if (dept.code) return dept.code;
+    const name = (dept.name || '').toLowerCase();
+    if (name.includes('software') || name.includes('engineering')) return 'ENG-01';
+    if (name.includes('product')) return 'PROD-01';
+    if (name.includes('devops') || name.includes('cloud')) return 'OPS-01';
+    if (name.includes('quality') || name.includes('qa')) return 'QA-01';
+    if (name.includes('data')) return 'DATA-01';
+    if (name.includes('security') || name.includes('cyber')) return 'SEC-01';
+    if (name.includes('sales')) return 'SALES-01';
+    if (name.includes('human') || name.includes('hr')) return 'HR-01';
+    if (name.includes('finance')) return 'FIN-01';
+    return 'DEPT-01';
   };
 
-  // Get department members list
+  // Calculate employee counts per department name/id
   const getDeptEmployees = (dept) => {
-    return employees.filter(
-      (e) => e.department === dept.name || e.departmentId === dept.id
-    );
+    const dId = (dept._id || dept.id || '').toString();
+    const dName = (dept.name || '').toLowerCase().split('_')[0].trim();
+
+    return employees.filter((e) => {
+      const eDeptId = (e.departmentId?._id || e.departmentId || '').toString();
+      const eDeptName = (e.departmentId?.name || e.department || '').toLowerCase().split('_')[0].trim();
+      return (dId && eDeptId === dId) || (dName && eDeptName && eDeptName.includes(dName));
+    });
+  };
+
+  const getDeptEmployeeCount = (dept) => {
+    return getDeptEmployees(dept).length;
   };
 
   // Open Create Form
@@ -121,7 +138,7 @@ const DepartmentsPage = () => {
     setFormData({
       name: '',
       code: '',
-      managerName: '',
+      managerEmployeeId: '',
       status: 'Active',
     });
     setFormError('');
@@ -133,8 +150,8 @@ const DepartmentsPage = () => {
     setEditingDepartment(dept);
     setFormData({
       name: dept.name || '',
-      code: dept.code || '',
-      managerName: dept.managerName || dept.manager || '',
+      code: getDeptCode(dept),
+      managerEmployeeId: dept.managerEmployeeId?._id || dept.managerEmployeeId || '',
       status: dept.status || 'Active',
     });
     setFormError('');
@@ -144,8 +161,8 @@ const DepartmentsPage = () => {
   // Form Submit (Create or Update)
   const handleFormSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.code) {
-      setFormError('Department Name and Code are required.');
+    if (!formData.name) {
+      setFormError('Department Name is required.');
       return;
     }
 
@@ -153,15 +170,22 @@ const DepartmentsPage = () => {
     setFormError('');
 
     try {
+      const payload = {
+        name: formData.name,
+        code: formData.code,
+        managerEmployeeId: formData.managerEmployeeId || null,
+        status: formData.status,
+      };
+
       if (editingDepartment) {
-        await updateDepartment(editingDepartment.id, formData);
+        await updateDepartment(editingDepartment._id || editingDepartment.id, payload);
       } else {
-        await createDepartment(formData);
+        await createDepartment(payload);
       }
       setIsFormModalOpen(false);
       await fetchDepartmentData();
     } catch (err) {
-      setFormError(err.message || 'Failed to save department. Please try again.');
+      setFormError(err.message || 'Failed to save department.');
     } finally {
       setIsSubmitting(false);
     }
@@ -188,7 +212,7 @@ const DepartmentsPage = () => {
       <div className="page-header">
         <div>
           <h2 className="page-title">Departments</h2>
-          <p className="page-subtitle">Manage company organizational structure and teams</p>
+          <p className="page-subtitle">Manage organizational IT business units, managers, and assigned staff</p>
         </div>
         <div className="flex gap-sm">
           <Button variant="secondary" onClick={fetchDepartmentData} disabled={loading}>
@@ -236,85 +260,107 @@ const DepartmentsPage = () => {
           action={{ label: 'Add Department', onClick: handleOpenCreateModal }}
         />
       ) : (
-        <div className="table-container card">
-          <table>
-            <thead>
-              <tr>
-                <th>Department Name</th>
-                <th>Code</th>
-                <th>Manager</th>
-                <th>Employees</th>
-                <th>Status</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredDepartments.map((dept) => {
-                const empCount = getDeptEmployeeCount(dept);
-                return (
-                  <tr key={dept.id || dept._id || dept.code}>
-                    <td>
-                      <button
-                        className="btn-link"
-                        onClick={() => setViewingDepartment(dept)}
-                      >
-                        🏢 {dept.name}
-                      </button>
-                    </td>
-                    <td>
-                      <span className="dept-code-tag">{dept.code}</span>
-                    </td>
-                    <td>{dept.managerName || dept.manager || 'Unassigned'}</td>
-                    <td>
-                      <button
-                        className="btn-badge-link"
-                        onClick={() =>
-                          navigate(`/hr/employees?department=${encodeURIComponent(dept.name)}`)
-                        }
-                        title="View employees in department"
-                      >
-                        👥 {empCount} Members
-                      </button>
-                    </td>
-                    <td>
-                      <span
-                        className={`badge ${
-                          dept.status === 'Active' ? 'badge-success' : 'badge-neutral'
-                        }`}
-                      >
-                        {dept.status || 'Active'}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div className="actions-cell">
-                        <Button
-                          variant="ghost"
-                          size="sm"
+        <div className="table-container-card card">
+          {/* Table Header Controls Bar */}
+          <div className="table-meta-bar">
+            <div className="meta-sequence-pill">
+              <span>🏢 IT Departments:</span> <strong>{filteredDepartments.length} Business Units</strong>
+            </div>
+
+            <div className="meta-stats-text">
+              Active Management &amp; Employee Members Distribution
+            </div>
+          </div>
+
+          {/* Framed Data Table */}
+          <div className="table-scroll-frame">
+            <table className="employees-data-table">
+              <thead>
+                <tr>
+                  <th style={{ width: '28%' }}>Department Name</th>
+                  <th style={{ width: '12%' }}>Code</th>
+                  <th style={{ width: '28%' }}>Designated Manager</th>
+                  <th style={{ width: '16%' }}>Assigned Staff</th>
+                  <th style={{ width: '16%', textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredDepartments.map((dept) => {
+                  const empCount = getDeptEmployeeCount(dept);
+                  const deptCode = getDeptCode(dept);
+                  const manager = dept.managerEmployeeId;
+                  const managerName = manager?.fullName || (manager?.firstName ? `${manager.firstName} ${manager.lastName || ''}` : manager?.email);
+                  const managerCode = manager?.employeeCode || '';
+
+                  return (
+                    <tr key={dept.id || dept._id || dept.code}>
+                      <td>
+                        <button
+                          className="btn-link"
                           onClick={() => setViewingDepartment(dept)}
                         >
-                          View
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => handleOpenEditModal(dept)}
+                          🏢 {dept.name}
+                        </button>
+                      </td>
+                      <td>
+                        <span className="dept-code-tag">{deptCode}</span>
+                      </td>
+                      <td>
+                        {managerName ? (
+                          <div className="employee-cell">
+                            <span className="emp-avatar-icon">👤</span>
+                            <div className="emp-name-block">
+                              <span style={{ fontWeight: '600', fontSize: '13px' }}>{managerName}</span>
+                              {managerCode && <span className="emp-sub-text">{managerCode}</span>}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-muted text-sm">Unassigned</span>
+                        )}
+                      </td>
+                      <td>
+                        <button
+                          className="btn-link"
+                          style={{ color: '#0284C7', fontWeight: '700' }}
+                          onClick={() =>
+                            navigate(`/hr/employees?department=${encodeURIComponent(dept._id || dept.id || dept.name)}`)
+                          }
+                          title="View employees in department"
                         >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          onClick={() => setDeletingId(dept.id || dept._id)}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                          👥 {empCount} Members
+                        </button>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <div className="actions-cell">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setViewingDepartment(dept)}
+                          >
+                            View
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handleOpenEditModal(dept)}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={() => setDeletingId(dept.id || dept._id)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -348,12 +394,16 @@ const DepartmentsPage = () => {
           </div>
 
           <div className="form-grid">
-            <Input
+            <Select
               id="dept-manager"
-              label="Department Manager"
-              placeholder="e.g. Jane Doe"
-              value={formData.managerName}
-              onChange={(e) => setFormData({ ...formData, managerName: e.target.value })}
+              label="Designated Department Manager"
+              value={formData.managerEmployeeId}
+              onChange={(e) => setFormData({ ...formData, managerEmployeeId: e.target.value })}
+              options={employees.map((emp) => ({
+                value: emp._id || emp.id,
+                label: `${emp.fullName || (emp.firstName && emp.lastName ? `${emp.firstName} ${emp.lastName}` : emp.email)} (${emp.employeeCode || ''})`,
+              }))}
+              placeholder="Unassigned (Select Manager)"
             />
             <Select
               id="dept-status"

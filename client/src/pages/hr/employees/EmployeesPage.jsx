@@ -2,8 +2,12 @@
  * PeopleOS — Employee Management Page
  * Route: /hr/employees
  *
- * Consumes existing employeeService.js and departmentService.js API layers.
- * Reuses existing Button, Input, Select, Modal, ConfirmDialog, EmptyState, ErrorMessage, Loading components.
+ * Features:
+ * - Framed table layout with sticky header
+ * - Sequenced ascending sorting (EMP-101 -> EMP-300)
+ * - Rows selector dropdown: 10, 25, 50, 100, Show All (200+)
+ * - Pagination controls & active count statistics
+ * - Clean department badge formatting
  */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -15,9 +19,9 @@ import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import EmptyState from '../../../components/common/EmptyState';
 import ErrorMessage from '../../../components/common/ErrorMessage';
 import Loading from '../../../components/common/Loading';
+import EmployeeOnboardingModal from '../../../components/hr/employees/EmployeeOnboardingModal';
 import {
   getEmployees,
-  createEmployee,
   updateEmployee,
   deleteEmployee,
 } from '../../../services/hr/employeeService';
@@ -34,6 +38,13 @@ const EmployeesPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Pagination & Display Controls
+  const [pageSize, setPageSize] = useState(25);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [viewMode, setViewMode] = useState('list'); // 'list' | 'kanban'
+
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
   const selectedDeptParam = searchParams.get('department') || '';
@@ -44,28 +55,25 @@ const EmployeesPage = () => {
   useEffect(() => {
     if (selectedDeptParam !== departmentFilter) {
       setDepartmentFilter(selectedDeptParam);
+      setCurrentPage(1);
     }
   }, [selectedDeptParam]);
 
   // Modals
+  const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [viewingEmployee, setViewingEmployee] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Form State
+  // Quick Edit Form State
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
+    fullName: '',
     email: '',
     phone: '',
-    department: '',
-    jobTitle: '',
-    managerName: '',
-    workingSchedule: 'Standard 40h/week',
-    employmentStatus: 'Active',
-    joinDate: new Date().toISOString().split('T')[0],
+    departmentId: '',
+    status: 'active',
   });
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -75,14 +83,25 @@ const EmployeesPage = () => {
     setLoading(true);
     setError(null);
     try {
+      const limitVal = pageSize === 'ALL' ? 500 : Number(pageSize);
+      const params = {
+        page: currentPage,
+        limit: limitVal,
+        search: searchQuery.trim(),
+        departmentId: departmentFilter,
+        status: statusFilter,
+      };
+
       const [empRes, deptRes] = await Promise.allSettled([
-        getEmployees(),
+        getEmployees(params),
         getDepartments(),
       ]);
 
       if (empRes.status === 'fulfilled') {
-        const rawEmps = empRes.value?.data || empRes.value || [];
+        const rawEmps = empRes.value?.data || empRes.value?.items || empRes.value || [];
         setEmployees(Array.isArray(rawEmps) ? rawEmps : []);
+        setTotalItems(empRes.value?.pagination?.total || (Array.isArray(rawEmps) ? rawEmps.length : 0));
+        setTotalPages(empRes.value?.pagination?.totalPages || 1);
       } else {
         throw empRes.reason || new Error('Failed to fetch employees from server');
       }
@@ -96,90 +115,45 @@ const EmployeesPage = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentPage, pageSize, searchQuery, departmentFilter, statusFilter]);
 
   useEffect(() => {
     fetchEmployeeData();
   }, [fetchEmployeeData]);
 
-  // Filtered employee list
-  const filteredEmployees = useMemo(() => {
-    return employees.filter((emp) => {
-      const firstName = emp.firstName || '';
-      const lastName = emp.lastName || '';
-      const fullName = `${firstName} ${lastName}`.trim() || emp.name || '';
-      const email = emp.email || '';
-      const jobTitle = emp.jobTitle || emp.position || '';
-      const query = searchQuery.toLowerCase();
+  // Clean department display helper (strips timestamp suffixes if any)
+  const cleanDeptName = (name) => {
+    if (!name) return 'General';
+    return name.split('_')[0].trim();
+  };
 
-      const matchesSearch =
-        fullName.toLowerCase().includes(query) ||
-        email.toLowerCase().includes(query) ||
-        jobTitle.toLowerCase().includes(query);
-
-      const matchesDept = departmentFilter
-        ? emp.department === departmentFilter || emp.departmentId === departmentFilter
-        : true;
-
-      const matchesStatus = statusFilter
-        ? (emp.employmentStatus || emp.status) === statusFilter
-        : true;
-
-      return matchesSearch && matchesDept && matchesStatus;
-    });
-  }, [employees, searchQuery, departmentFilter, statusFilter]);
-
-  // Department select options
+  // Department select options for filter
   const departmentOptions = useMemo(() => {
     return departments.map((d) => ({
-      value: d.name || d.id,
-      label: d.name,
+      value: d._id || d.id || d.name,
+      label: cleanDeptName(d.name),
     }));
   }, [departments]);
-
-  // Open Create Form
-  const handleOpenCreateModal = () => {
-    setEditingEmployee(null);
-    setFormData({
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: '',
-      department: departmentOptions[0]?.value || '',
-      jobTitle: '',
-      managerName: '',
-      workingSchedule: 'Standard 40h/week',
-      employmentStatus: 'Active',
-      joinDate: new Date().toISOString().split('T')[0],
-    });
-    setFormError('');
-    setIsFormModalOpen(true);
-  };
 
   // Open Edit Form
   const handleOpenEditModal = (emp) => {
     setEditingEmployee(emp);
     setFormData({
-      firstName: emp.firstName || emp.name?.split(' ')[0] || '',
-      lastName: emp.lastName || emp.name?.split(' ').slice(1).join(' ') || '',
+      fullName: emp.fullName || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || '',
       email: emp.email || '',
       phone: emp.phone || '',
-      department: emp.department || '',
-      jobTitle: emp.jobTitle || emp.position || '',
-      managerName: emp.managerName || emp.manager || '',
-      workingSchedule: emp.workingSchedule || 'Standard 40h/week',
-      employmentStatus: emp.employmentStatus || emp.status || 'Active',
-      joinDate: emp.joinDate || emp.joiningDate || new Date().toISOString().split('T')[0],
+      departmentId: emp.departmentId?._id || emp.departmentId || '',
+      status: emp.status || emp.employmentStatus || 'active',
     });
     setFormError('');
     setIsFormModalOpen(true);
   };
 
-  // Form Submit (Create or Edit)
+  // Edit Submit
   const handleFormSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.firstName || !formData.email || !formData.jobTitle) {
-      setFormError('First Name, Email, and Job Title are required.');
+    if (!formData.fullName || !formData.email) {
+      setFormError('Full Name and Email are required.');
       return;
     }
 
@@ -189,13 +163,11 @@ const EmployeesPage = () => {
     try {
       if (editingEmployee) {
         await updateEmployee(editingEmployee.id || editingEmployee._id, formData);
-      } else {
-        await createEmployee(formData);
       }
       setIsFormModalOpen(false);
       await fetchEmployeeData();
     } catch (err) {
-      setFormError(err.message || 'Failed to save employee. Please try again.');
+      setFormError(err.message || 'Failed to update employee record.');
     } finally {
       setIsSubmitting(false);
     }
@@ -220,6 +192,7 @@ const EmployeesPage = () => {
     setSearchQuery('');
     setDepartmentFilter('');
     setStatusFilter('');
+    setCurrentPage(1);
     setSearchParams({});
   };
 
@@ -228,35 +201,40 @@ const EmployeesPage = () => {
       {/* Header */}
       <div className="page-header">
         <div>
-          <h2 className="page-title">Employees</h2>
-          <p className="page-subtitle">Centralized employee records and HR information hub</p>
+          <h2 className="page-title">Employees Directory</h2>
+          <p className="page-subtitle">Centralized employee records, role assignments, and HR profile hub</p>
         </div>
         <div className="flex gap-sm">
           <Button variant="secondary" onClick={fetchEmployeeData} disabled={loading}>
             🔄 Refresh
           </Button>
-          <Button variant="primary" onClick={handleOpenCreateModal}>
+          <Button variant="primary" onClick={() => setIsOnboardingModalOpen(true)}>
             + Add Employee
           </Button>
         </div>
       </div>
 
-      {/* Toolbar / Filters */}
+      {/* Toolbar / Filters & Rows Selector */}
       <div className="filters-toolbar card">
         <div className="search-box">
           <Input
             id="emp-search"
-            placeholder="Search by employee name, email, or job title..."
+            placeholder="Search by employee name, email, code (e.g. EMP-101), or position..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1);
+            }}
           />
         </div>
+
         <div className="filter-dropdowns">
           <Select
             id="dept-filter"
             value={departmentFilter}
             onChange={(e) => {
               setDepartmentFilter(e.target.value);
+              setCurrentPage(1);
               if (e.target.value) {
                 setSearchParams({ department: e.target.value });
               } else {
@@ -266,17 +244,42 @@ const EmployeesPage = () => {
             options={departmentOptions}
             placeholder="All Departments"
           />
+
           <Select
             id="status-filter"
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setCurrentPage(1);
+            }}
             options={[
-              { value: 'Active', label: 'Active' },
-              { value: 'On Leave', label: 'On Leave' },
-              { value: 'Terminated', label: 'Terminated' },
+              { value: 'active', label: 'Active' },
+              { value: 'inactive', label: 'Inactive' },
+              { value: 'terminated', label: 'Terminated' },
             ]}
             placeholder="All Statuses"
           />
+
+          {/* Rows Limit Selector */}
+          <div className="rows-limit-wrapper">
+            <span className="rows-limit-label">Show:</span>
+            <select
+              className="rows-limit-select"
+              value={pageSize}
+              onChange={(e) => {
+                const val = e.target.value === 'ALL' ? 'ALL' : Number(e.target.value);
+                setPageSize(val);
+                setCurrentPage(1);
+              }}
+            >
+              <option value={10}>10 rows</option>
+              <option value={25}>25 rows</option>
+              <option value={50}>50 rows</option>
+              <option value={100}>100 rows</option>
+              <option value="ALL">Show All (200+)</option>
+            </select>
+          </div>
+
           {(searchQuery || departmentFilter || statusFilter) && (
             <Button variant="ghost" size="sm" onClick={clearFilters}>
               Clear Filters
@@ -287,227 +290,357 @@ const EmployeesPage = () => {
 
       {/* Main Content Area */}
       {loading ? (
-        <Loading message="Fetching employees from API..." />
+        <Loading message="Loading employee records in sequence..." />
       ) : error ? (
         <ErrorMessage message={error} onRetry={fetchEmployeeData} />
-      ) : filteredEmployees.length === 0 ? (
+      ) : employees.length === 0 ? (
         <EmptyState
           title="No employees found"
           description="No employee records matched your active search or filters."
-          action={{ label: 'Add Employee', onClick: handleOpenCreateModal }}
+          action={{ label: 'Add Employee', onClick: () => setIsOnboardingModalOpen(true) }}
         />
       ) : (
-        <div className="table-container card">
-          <table>
-            <thead>
-              <tr>
-                <th>Employee</th>
-                <th>Employee ID</th>
-                <th>Department</th>
-                <th>Job Position</th>
-                <th>Schedule</th>
-                <th>Status</th>
-                <th>Join Date</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredEmployees.map((emp) => {
+        <div className="table-container-card card">
+          {/* Table Header Controls Bar */}
+          <div className="table-meta-bar">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div className="meta-sequence-pill">
+                <span>🔢 Sequenced:</span> <strong>EMP-101 → EMP-300</strong>
+              </div>
+
+              {/* Kanban / List View Toggle Button */}
+              <div className="view-toggle-group">
+                <button
+                  type="button"
+                  className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
+                  onClick={() => setViewMode('list')}
+                  title="Table List View"
+                >
+                  📋 List View
+                </button>
+                <button
+                  type="button"
+                  className={`view-toggle-btn ${viewMode === 'kanban' ? 'active' : ''}`}
+                  onClick={() => setViewMode('kanban')}
+                  title="Kanban Card View"
+                >
+                  📇 Kanban View
+                </button>
+              </div>
+            </div>
+
+            <div className="meta-stats-text">
+              Showing <strong>{employees.length}</strong> of <strong>{totalItems || employees.length}</strong> Employees
+              {pageSize !== 'ALL' && totalPages > 1 && (
+                <span> (Page {currentPage} of {totalPages})</span>
+              )}
+            </div>
+          </div>
+
+          {/* Conditional View Rendering: Framed Data Table VS Kanban Card Grid */}
+          {viewMode === 'list' ? (
+            <div className="table-scroll-frame">
+              <table className="employees-data-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '22%' }}>Employee</th>
+                    <th style={{ width: '12%' }}>Employee Code</th>
+                    <th style={{ width: '18%' }}>Department</th>
+                    <th style={{ width: '18%' }}>Job Position</th>
+                    <th style={{ width: '10%' }}>Schedule</th>
+                    <th style={{ width: '8%' }}>Status</th>
+                    <th style={{ width: '12%', textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {employees.map((emp) => {
+                    const fullName =
+                      emp.fullName ||
+                      (emp.firstName && emp.lastName ? `${emp.firstName} ${emp.lastName}` : emp.name || emp.email);
+                    const empCode = emp.employeeCode || emp.id || emp._id || 'EMP-N/A';
+                    const deptRaw = emp.departmentId?.name || emp.department || 'General';
+                    const deptName = cleanDeptName(deptRaw);
+                    const jobTitle = emp.jobPositionId?.title || emp.jobTitle || emp.position || 'Staff';
+                    const scheduleName = emp.workingScheduleId?.name ? emp.workingScheduleId.name.split('(')[0].trim() : 'Standard Shift';
+                    const empStatus = emp.status || emp.employmentStatus || 'active';
+
+                    return (
+                      <tr key={emp._id || emp.id || emp.email}>
+                        <td>
+                          <div className="employee-cell">
+                            <span className="emp-avatar-icon">👤</span>
+                            <div className="emp-name-block">
+                              <button
+                                className="btn-link"
+                                onClick={() => setViewingEmployee(emp)}
+                              >
+                                {fullName}
+                              </button>
+                              <div className="emp-sub-text">{emp.email}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <span className="emp-id-tag">{empCode}</span>
+                        </td>
+                        <td>
+                          <span className="dept-code-tag" title={deptName}>
+                            {deptName}
+                          </span>
+                        </td>
+                        <td>
+                          <span className="job-title-text" title={jobTitle}>{jobTitle}</span>
+                        </td>
+                        <td>
+                          <span className="schedule-text">{scheduleName}</span>
+                        </td>
+                        <td>
+                          <span
+                            className={`badge ${
+                              empStatus === 'active'
+                                ? 'badge-success'
+                                : empStatus === 'inactive'
+                                ? 'badge-warning'
+                                : 'badge-danger'
+                            }`}
+                          >
+                            {empStatus.toUpperCase()}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <div className="actions-cell">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setViewingEmployee(emp)}
+                            >
+                              View
+                            </Button>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => handleOpenEditModal(emp)}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              onClick={() => setDeletingId(emp._id || emp.id)}
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="kanban-grid-container">
+              {employees.map((emp) => {
                 const fullName =
-                  emp.firstName && emp.lastName
-                    ? `${emp.firstName} ${emp.lastName}`
-                    : emp.name || emp.email;
-                const empStatus = emp.employmentStatus || emp.status || 'Active';
+                  emp.fullName ||
+                  (emp.firstName && emp.lastName ? `${emp.firstName} ${emp.lastName}` : emp.name || emp.email);
+                const empCode = emp.employeeCode || emp.id || emp._id || 'EMP-N/A';
+                const deptRaw = emp.departmentId?.name || emp.department || 'General';
+                const deptName = cleanDeptName(deptRaw);
+                const jobTitle = emp.jobPositionId?.title || emp.jobTitle || emp.position || 'Staff';
+                const scheduleName = emp.workingScheduleId?.name ? emp.workingScheduleId.name.split('(')[0].trim() : 'Standard Shift';
+                const empStatus = emp.status || emp.employmentStatus || 'active';
 
                 return (
-                  <tr key={emp.id || emp._id || emp.email}>
-                    <td>
-                      <div className="employee-cell">
-                        <span className="emp-avatar-icon">👤</span>
-                        <div>
+                  <div key={emp._id || emp.id || emp.email} className="employee-kanban-card">
+                    <div className="kanban-card-header">
+                      <div className="kanban-user-info">
+                        <div className="kanban-avatar">👤</div>
+                        <div className="kanban-title-block">
                           <button
-                            className="btn-link"
+                            className="kanban-emp-name"
                             onClick={() => setViewingEmployee(emp)}
                           >
                             {fullName}
                           </button>
-                          <div className="emp-sub-text">{emp.email}</div>
+                          <span className="kanban-emp-email">{emp.email}</span>
                         </div>
                       </div>
-                    </td>
-                    <td>
-                      <span className="emp-id-tag">{emp.id || emp._id || 'EMP-N/A'}</span>
-                    </td>
-                    <td>
-                      <span className="dept-code-tag">{emp.department || 'General'}</span>
-                    </td>
-                    <td>{emp.jobTitle || emp.position || 'Staff'}</td>
-                    <td>{emp.workingSchedule || 'Standard'}</td>
-                    <td>
                       <span
                         className={`badge ${
-                          empStatus === 'Active'
+                          empStatus === 'active'
                             ? 'badge-success'
-                            : empStatus === 'On Leave'
+                            : empStatus === 'inactive'
                             ? 'badge-warning'
                             : 'badge-danger'
                         }`}
                       >
-                        {empStatus}
+                        {empStatus.toUpperCase()}
                       </span>
-                    </td>
-                    <td>{emp.joinDate || emp.joiningDate || 'N/A'}</td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div className="actions-cell">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setViewingEmployee(emp)}
-                        >
-                          View Profile
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => handleOpenEditModal(emp)}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          onClick={() => setDeletingId(emp.id || emp._id)}
-                        >
-                          Delete
-                        </Button>
+                    </div>
+
+                    <div className="kanban-card-body">
+                      <div className="kanban-info-row">
+                        <span className="kanban-info-label">Code:</span>
+                        <span className="emp-id-tag">{empCode}</span>
                       </div>
-                    </td>
-                  </tr>
+                      <div className="kanban-info-row">
+                        <span className="kanban-info-label">Dept:</span>
+                        <span className="dept-code-tag">{deptName}</span>
+                      </div>
+                      <div className="kanban-info-row">
+                        <span className="kanban-info-label">Role:</span>
+                        <span className="job-title-text">{jobTitle}</span>
+                      </div>
+                      <div className="kanban-info-row">
+                        <span className="kanban-info-label">Shift:</span>
+                        <span className="schedule-text">{scheduleName}</span>
+                      </div>
+                    </div>
+
+                    <div className="kanban-card-actions">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setViewingEmployee(emp)}
+                      >
+                        View
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleOpenEditModal(emp)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => setDeletingId(emp._id || emp.id)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
                 );
               })}
-            </tbody>
-          </table>
+            </div>
+          )}
+
+          {/* Table Footer Pagination controls */}
+          {pageSize !== 'ALL' && totalPages > 1 && (
+            <div className="table-pagination-footer">
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={currentPage <= 1 || loading}
+                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+              >
+                ← Previous Page
+              </Button>
+
+              <div className="pagination-page-numbers">
+                {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                  let pageNum = i + 1;
+                  if (totalPages > 7 && currentPage > 4) {
+                    pageNum = currentPage - 3 + i;
+                  }
+                  if (pageNum > totalPages) return null;
+
+                  return (
+                    <button
+                      key={pageNum}
+                      className={`page-num-btn ${pageNum === currentPage ? 'active' : ''}`}
+                      onClick={() => setCurrentPage(pageNum)}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={currentPage >= totalPages || loading}
+                onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+              >
+                Next Page →
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Create / Edit Employee Modal */}
-      <Modal
-        isOpen={isFormModalOpen}
-        onClose={() => setIsFormModalOpen(false)}
-        title={editingEmployee ? 'Edit Employee Record' : 'Add New Employee'}
-        size="lg"
-      >
-        <form onSubmit={handleFormSubmit}>
-          {formError && <div className="form-error-alert">{formError}</div>}
+      {/* 7-Step Professional Onboarding Modal */}
+      <EmployeeOnboardingModal
+        isOpen={isOnboardingModalOpen}
+        onClose={() => setIsOnboardingModalOpen(false)}
+        onSuccess={fetchEmployeeData}
+      />
 
-          <div className="form-grid">
+      {/* Edit Employee Quick Modal */}
+      {isFormModalOpen && (
+        <Modal
+          isOpen={isFormModalOpen}
+          onClose={() => setIsFormModalOpen(false)}
+          title="Edit Employee Record"
+          size="md"
+        >
+          <form onSubmit={handleFormSubmit}>
+            {formError && <div className="form-error-alert">{formError}</div>}
+
             <Input
-              id="emp-first-name"
-              label="First Name"
+              id="emp-edit-fullname"
+              label="Full Name"
               required
-              placeholder="e.g. John"
-              value={formData.firstName}
-              onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+              value={formData.fullName}
+              onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
             />
-            <Input
-              id="emp-last-name"
-              label="Last Name"
-              placeholder="e.g. Doe"
-              value={formData.lastName}
-              onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-            />
-          </div>
 
-          <div className="form-grid">
             <Input
-              id="emp-email"
+              id="emp-edit-email"
               type="email"
               label="Email Address"
               required
-              placeholder="john.doe@company.com"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             />
+
             <Input
-              id="emp-phone"
+              id="emp-edit-phone"
               label="Phone Number"
-              placeholder="+1 (555) 000-0000"
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
             />
-          </div>
 
-          <div className="form-grid">
             <Select
-              id="emp-dept"
-              label="Department"
-              options={departmentOptions}
-              value={formData.department}
-              onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-              placeholder="Select Department"
-            />
-            <Input
-              id="emp-job-title"
-              label="Job Position"
-              required
-              placeholder="e.g. Senior Software Engineer"
-              value={formData.jobTitle}
-              onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
-            />
-          </div>
-
-          <div className="form-grid">
-            <Input
-              id="emp-manager"
-              label="Reporting Manager"
-              placeholder="e.g. Sarah Connor"
-              value={formData.managerName}
-              onChange={(e) => setFormData({ ...formData, managerName: e.target.value })}
-            />
-            <Input
-              id="emp-schedule"
-              label="Working Schedule"
-              placeholder="e.g. Standard 40h/week"
-              value={formData.workingSchedule}
-              onChange={(e) => setFormData({ ...formData, workingSchedule: e.target.value })}
-            />
-          </div>
-
-          <div className="form-grid">
-            <Select
-              id="emp-status"
-              label="Employment Status"
+              id="emp-edit-status"
+              label="Employee Status"
               options={[
-                { value: 'Active', label: 'Active' },
-                { value: 'On Leave', label: 'On Leave' },
-                { value: 'Terminated', label: 'Terminated' },
+                { value: 'active', label: 'Active' },
+                { value: 'inactive', label: 'Inactive' },
+                { value: 'terminated', label: 'Terminated' },
               ]}
-              value={formData.employmentStatus}
-              onChange={(e) => setFormData({ ...formData, employmentStatus: e.target.value })}
+              value={formData.status}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
             />
-            <Input
-              id="emp-join-date"
-              type="date"
-              label="Joining Date"
-              value={formData.joinDate}
-              onChange={(e) => setFormData({ ...formData, joinDate: e.target.value })}
-            />
-          </div>
 
-          <div className="modal-form-actions">
-            <Button
-              variant="secondary"
-              onClick={() => setIsFormModalOpen(false)}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button variant="primary" type="submit" loading={isSubmitting}>
-              {editingEmployee ? 'Save Changes' : 'Create Employee'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
+            <div className="modal-form-actions margin-top-md">
+              <Button
+                variant="secondary"
+                onClick={() => setIsFormModalOpen(false)}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button variant="primary" type="submit" loading={isSubmitting}>
+                Save Changes
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
 
       {/* Employee Details Modal View */}
       {viewingEmployee && (
@@ -515,9 +648,7 @@ const EmployeesPage = () => {
           isOpen={Boolean(viewingEmployee)}
           onClose={() => setViewingEmployee(null)}
           title={`Employee Profile — ${
-            viewingEmployee.firstName
-              ? `${viewingEmployee.firstName} ${viewingEmployee.lastName}`
-              : viewingEmployee.name || viewingEmployee.email
+            viewingEmployee.fullName || viewingEmployee.name || viewingEmployee.email
           }`}
           size="lg"
         >
@@ -526,34 +657,32 @@ const EmployeesPage = () => {
               <span className="profile-avatar-lg">👤</span>
               <div>
                 <h3>
-                  {viewingEmployee.firstName
-                    ? `${viewingEmployee.firstName} ${viewingEmployee.lastName}`
-                    : viewingEmployee.name || viewingEmployee.email}
+                  {viewingEmployee.fullName || viewingEmployee.name || viewingEmployee.email}
                 </h3>
                 <p className="text-muted text-sm">
-                  {viewingEmployee.jobTitle || viewingEmployee.position || 'Staff'} •{' '}
+                  {viewingEmployee.jobPositionId?.title || viewingEmployee.jobTitle || 'Staff'} •{' '}
                   <span className="dept-code-tag">
-                    {viewingEmployee.department || 'General'}
+                    {cleanDeptName(viewingEmployee.departmentId?.name || viewingEmployee.department)}
                   </span>
                 </p>
                 <span
                   className={`badge ${
-                    (viewingEmployee.employmentStatus || viewingEmployee.status) === 'Active'
+                    (viewingEmployee.status || viewingEmployee.employmentStatus) === 'active'
                       ? 'badge-success'
                       : 'badge-warning'
                   }`}
                 >
-                  {viewingEmployee.employmentStatus || viewingEmployee.status || 'Active'}
+                  {(viewingEmployee.status || viewingEmployee.employmentStatus || 'active').toUpperCase()}
                 </span>
               </div>
             </div>
 
             <div className="profile-sections">
               <div className="profile-section">
-                <h4>Contact & Basic Info</h4>
+                <h4>Contact &amp; Basic Info</h4>
                 <div className="detail-row">
-                  <strong>Employee ID:</strong>
-                  <span>{viewingEmployee.id || viewingEmployee._id || 'EMP-N/A'}</span>
+                  <strong>Employee Code:</strong>
+                  <span>{viewingEmployee.employeeCode || viewingEmployee._id || 'N/A'}</span>
                 </div>
                 <div className="detail-row">
                   <strong>Email Address:</strong>
@@ -565,27 +694,31 @@ const EmployeesPage = () => {
                 </div>
                 <div className="detail-row">
                   <strong>Joining Date:</strong>
-                  <span>{viewingEmployee.joinDate || viewingEmployee.joiningDate || 'N/A'}</span>
+                  <span>
+                    {viewingEmployee.dateJoined
+                      ? new Date(viewingEmployee.dateJoined).toISOString().slice(0, 10)
+                      : 'N/A'}
+                  </span>
                 </div>
               </div>
 
               <div className="profile-section">
-                <h4>Employment & HR Assignment</h4>
+                <h4>Employment &amp; HR Assignment</h4>
                 <div className="detail-row">
                   <strong>Department:</strong>
-                  <span>{viewingEmployee.department || 'Unassigned'}</span>
+                  <span>{cleanDeptName(viewingEmployee.departmentId?.name || viewingEmployee.department)}</span>
                 </div>
                 <div className="detail-row">
                   <strong>Job Position:</strong>
-                  <span>{viewingEmployee.jobTitle || viewingEmployee.position || 'Staff'}</span>
+                  <span>{viewingEmployee.jobPositionId?.title || viewingEmployee.jobTitle || 'Staff'}</span>
                 </div>
                 <div className="detail-row">
                   <strong>Reporting Manager:</strong>
-                  <span>{viewingEmployee.managerName || viewingEmployee.manager || 'Unassigned'}</span>
+                  <span>{viewingEmployee.managerId?.fullName || 'Unassigned'}</span>
                 </div>
                 <div className="detail-row">
                   <strong>Working Schedule:</strong>
-                  <span>{viewingEmployee.workingSchedule || 'Standard'}</span>
+                  <span>{viewingEmployee.workingScheduleId?.name || 'Standard Shift'}</span>
                 </div>
               </div>
             </div>
@@ -622,7 +755,7 @@ const EmployeesPage = () => {
                     navigate('/hr/time-off');
                   }}
                 >
-                  🏖️ Time Off & Leave
+                  🏖️ Time Off &amp; Leave
                 </Button>
               </div>
             </div>

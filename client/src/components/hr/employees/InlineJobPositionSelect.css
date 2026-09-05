@@ -1,0 +1,119 @@
+.inline-job-select-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.select-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.select-search-input {
+  width: 100%;
+  padding-right: 32px;
+}
+
+.select-search-input.disabled {
+  background-color: var(--bg-tertiary, #f1f5f9);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.select-search-input.input-error {
+  border-color: var(--danger-color, #ef4444) !important;
+}
+
+.dropdown-arrow {
+  position: absolute;
+  right: 12px;
+  font-size: 10px;
+  color: var(--text-muted, #94a3b8);
+  pointer-events: none;
+}
+
+.select-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  background-color: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  z-index: 1050;
+  padding: 4px;
+}
+
+.dropdown-option-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--text-primary, #1e293b);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.dropdown-option-item:hover {
+  background-color: var(--accent-light, #eff6ff);
+  color: var(--primary-color, #2563eb);
+}
+
+.dropdown-option-item.selected {
+  background-color: var(--primary-light, #e0e7ff);
+  font-weight: 600;
+  color: var(--primary-color, #2563eb);
+}
+
+.dropdown-option-item.create-option {
+  border-top: 1px dashed var(--border-color, #e2e8f0);
+  margin-top: 4px;
+  color: var(--primary-color, #2563eb);
+  font-weight: 500;
+  background-color: #f8fafc;
+}
+
+.dropdown-option-item.create-option:hover {
+  background-color: #3b82f6;
+  color: #ffffff;
+}
+
+.dropdown-option-item.create-option:hover .dept-badge {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.create-plus {
+  font-weight: 700;
+  margin-right: 6px;
+  font-size: 16px;
+}
+
+.dept-badge {
+  font-size: 11px;
+  padding: 2px 6px;
+  background-color: #e2e8f0;
+  color: #475569;
+  border-radius: 4px;
+}
+
+.dropdown-state-item {
+  padding: 12px;
+  font-size: 13px;
+  text-align: center;
+  color: var(--text-muted, #64748b);
+}
+
+.field-error-text {
+  font-size: 12px;
+  color: var(--danger-color, #ef4444);
+  margin-top: 2px;
+}

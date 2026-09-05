@@ -41,22 +41,28 @@ const authenticate = async (req, res, next) => {
           return next();
         }
       } catch {
-        // Continue to headers or fallback
+        // Fall through
       }
     }
 
+    // Allow explicit testing header overrides
     const roleHeader = req.headers['x-user-role'];
     const employeeIdHeader = req.headers['x-employee-id'];
 
-    // Header-specified or default user context for testing
-    req.user = {
-      id: targetUserId || '000000000000000000000001',
-      role: roleHeader || 'admin',
-      employeeId: employeeIdHeader || null,
-      email: 'admin@peopleos.local',
-    };
+    if (roleHeader || employeeIdHeader) {
+      req.user = {
+        id: targetUserId || '000000000000000000000001',
+        role: roleHeader || 'admin',
+        employeeId: employeeIdHeader || null,
+        email: 'header@peopleos.local',
+      };
+      return next();
+    }
 
-    next();
+    return res.status(401).json({
+      success: false,
+      message: 'Authentication token required. Please sign in to access this resource.',
+    });
   } catch (error) {
     next(error);
   }

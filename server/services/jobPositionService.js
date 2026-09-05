@@ -9,6 +9,12 @@ const Contract = require('../models/Contract');
 const { buildPaginationMeta } = require('../utils/pagination');
 
 const createJobPosition = async (data) => {
+  if (!data.title || !data.title.trim()) {
+    const err = new Error('Job Position title is required');
+    err.statusCode = 400;
+    throw err;
+  }
+
   const department = await Department.findById(data.departmentId);
   if (!department) {
     const err = new Error('Department does not exist');
@@ -16,7 +22,24 @@ const createJobPosition = async (data) => {
     throw err;
   }
 
-  const jobPosition = new JobPosition(data);
+  const cleanTitle = data.title.trim();
+
+  // Duplicate protection: check if same position exists in this department
+  const existingPos = await JobPosition.findOne({
+    departmentId: data.departmentId,
+    title: { $regex: new RegExp(`^${cleanTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+  });
+
+  if (existingPos) {
+    const err = new Error(`"${cleanTitle}" already exists in ${department.name}.`);
+    err.statusCode = 409;
+    throw err;
+  }
+
+  const jobPosition = new JobPosition({
+    title: cleanTitle,
+    departmentId: data.departmentId,
+  });
   return await jobPosition.save();
 };
 

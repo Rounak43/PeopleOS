@@ -7,6 +7,11 @@ const contractSchema = new mongoose.Schema(
       ref: 'Employee',
       required: true,
     },
+    contractCode: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     startDate: {
       type: Date,
       required: true,
@@ -15,10 +20,10 @@ const contractSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
-    wage: {
-      type: Number,
-      required: true,
-      min: 0,
+    durationType: {
+      type: String,
+      enum: ['Permanent', 'Intern', 'Part-time', 'Fixed Term'],
+      default: 'Permanent',
     },
     departmentId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -30,20 +35,61 @@ const contractSchema = new mongoose.Schema(
       ref: 'JobPosition',
       required: true,
     },
-    workingScheduleId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'WorkingSchedule',
-      default: null,
+    wage: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    wageFrequency: {
+      type: String,
+      enum: ['Monthly', 'Bi-weekly', 'Hourly'],
+      default: 'Monthly',
     },
     salaryStructureId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'SalaryStructure',
       default: null,
     },
+    workingScheduleId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'WorkingSchedule',
+      default: null,
+    },
+    workLocation: {
+      type: String,
+      enum: ['Hybrid (3 Days Office)', 'On-site (Full Office)', 'Full Remote (WFH)'],
+      default: 'Hybrid (3 Days Office)',
+    },
+    probationPeriodMonths: {
+      type: Number,
+      default: 3,
+    },
+    noticePeriodDays: {
+      type: Number,
+      default: 30,
+    },
+    overtimeAllowed: {
+      type: Boolean,
+      default: true,
+    },
     status: {
       type: String,
       enum: ['active', 'draft', 'expired', 'terminated'],
-      default: 'draft',
+      default: 'active',
+    },
+    terminationReason: {
+      type: String,
+      default: '',
+    },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    lastModifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
     },
   },
   { timestamps: true, collection: 'contracts' }

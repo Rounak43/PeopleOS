@@ -1,3 +1,8 @@
+/**
+ * PO System — Minimal HR & Payroll Portal Sign In Page
+ * Recreates exact requested UI structure using Vanilla CSS & connects with authentication backend.
+ */
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
@@ -8,11 +13,11 @@ const LoginPage = () => {
   const { signin, signup } = useAuth();
 
   const [isSignUp, setIsSignUp] = useState(false);
+  const [signupRole, setSignupRole] = useState('hr_manager'); // 'hr_manager' or 'employee'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [errorMessage, setErrorMessage] = useState('');
@@ -21,7 +26,7 @@ const LoginPage = () => {
   const validateForm = () => {
     setErrorMessage('');
     if (!email || !email.trim()) {
-      setErrorMessage(isSignUp ? 'Email address is required.' : 'Email address or Employee ID is required.');
+      setErrorMessage(isSignUp ? 'Email address is required.' : 'Email or Employee ID is required.');
       return false;
     }
     if (isSignUp) {
@@ -35,8 +40,8 @@ const LoginPage = () => {
       setErrorMessage('Password is required.');
       return false;
     }
-    if (password.length < 6) {
-      setErrorMessage('Password must be at least 6 characters long.');
+    if (password.length < 4) {
+      setErrorMessage('Password must be at least 4 characters long.');
       return false;
     }
     if (isSignUp && password !== confirmPassword) {
@@ -60,7 +65,7 @@ const LoginPage = () => {
         const res = await signup({
           email: email.trim(),
           password,
-          role: 'employee',
+          role: signupRole,
         });
         authUser = res?.user;
         setInfoMessage('Account created successfully! Redirecting...');
@@ -84,15 +89,11 @@ const LoginPage = () => {
     } catch (error) {
       console.error('Authentication error:', error);
       if (error.status === 401) {
-        setErrorMessage('Invalid email or password.');
+        setErrorMessage(error.message || 'Invalid email/Employee ID or password.');
       } else if (error.status === 409) {
         setErrorMessage('An account with this email address already exists.');
-      } else if (error.status === 403) {
-        setErrorMessage("You don't have permission to perform this action.");
       } else if (error.status === 400) {
         setErrorMessage(error.data?.message || 'Invalid input details provided.');
-      } else if (error.status === 500) {
-        setErrorMessage('Server error occurred. Please try again later.');
       } else {
         setErrorMessage(error.message || 'Unable to connect to the authentication server.');
       }
@@ -103,7 +104,7 @@ const LoginPage = () => {
 
   const handleForgotPassword = (e) => {
     e.preventDefault();
-    setInfoMessage('Password reset link will be sent to your registered email address.');
+    setInfoMessage('Password reset instructions will be sent to your registered email.');
     setTimeout(() => setInfoMessage(''), 4000);
   };
 
@@ -117,185 +118,197 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="login-container">
-      <div className="login-card">
-        {/* Brand Header */}
-        <div className="login-brand">
-          <h1 className="brand-logo">
-            People<span className="brand-accent">OS</span>
-          </h1>
-          <p className="brand-tagline">HR &amp; Payroll Management System</p>
-        </div>
+    <div className="po-login-wrapper">
+      {/* Main Container */}
+      <main className="po-login-main">
+        <div className="po-login-content-box">
 
-        {/* Header */}
-        <div className="login-header">
-          <h2 className="login-title">{isSignUp ? 'Create Account' : 'Sign In'}</h2>
-          <p className="login-subtitle">
-            {isSignUp
-              ? 'Fill in your details below to create your PeopleOS user account'
-              : 'Sign in with your email and password to access your portal'}
-          </p>
-        </div>
-
-        {/* Error Banner */}
-        {errorMessage && (
-          <div className="login-info-banner error-banner" style={{ backgroundColor: '#fee2e2', color: '#991b1b', border: '1px solid #f87171' }} role="alert">
-            {errorMessage}
-          </div>
-        )}
-
-        {/* Info Banner */}
-        {infoMessage && (
-          <div className="login-info-banner" role="alert">
-            {infoMessage}
-          </div>
-        )}
-
-        {/* Form */}
-        <form className="login-form" onSubmit={handleSubmit}>
-          {/* Email / Employee ID Field */}
-          <div className="form-group">
-            <label htmlFor="email" className="form-label">
-              {isSignUp ? 'Email Address' : 'Email Address or Employee ID'} <span className="required-star">*</span>
-            </label>
-            <input
-              id="email"
-              type="text"
-              className="form-input"
-              placeholder={isSignUp ? 'name@peopleos.com' : 'name@peopleos.com or EMP-001'}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="username"
-              disabled={isSubmitting}
-            />
-          </div>
-
-          {/* Password Field */}
-          <div className="form-group">
-            <div className="form-label-row">
-              <label htmlFor="password" className="form-label">
-                Password <span className="required-star">*</span>
-              </label>
-              {!isSignUp && (
-                <button
-                  type="button"
-                  className="forgot-password-btn"
-                  onClick={handleForgotPassword}
-                  disabled={isSubmitting}
-                >
-                  Forgot password?
-                </button>
-              )}
+          {/* Logo & Title Block */}
+          <div className="po-header-brand">
+            <div className="po-logo-badge">
+              <span className="po-logo-p">P</span>
+              <span className="po-logo-o">O</span>
             </div>
+            <h1 className="po-title">PO System Portal</h1>
+            <p className="po-subtitle">HR &amp; Payroll Management Sys</p>
+          </div>
 
-            <div className="password-input-wrapper">
-              <input
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                className="form-input password-input"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete={isSignUp ? 'new-password' : 'current-password'}
-                disabled={isSubmitting}
-              />
-              <button
-                type="button"
-                className="password-toggle-btn"
-                onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-                disabled={isSubmitting}
-              >
-                {showPassword ? (
-                  <svg
-                    width="19"
-                    height="19"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-                    <line x1="1" y1="1" x2="23" y2="23" />
-                  </svg>
-                ) : (
-                  <svg
-                    width="19"
-                    height="19"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                )}
+          {/* Auth Card */}
+          <div className="po-auth-card">
+            <div className="po-card-header">
+              <h2 className="po-card-title">{isSignUp ? 'Create Account' : 'Sign In'}</h2>
+              <button type="button" className="po-toggle-mode-btn" onClick={toggleMode} disabled={isSubmitting}>
+                {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
               </button>
             </div>
-          </div>
 
-          {/* Confirm Password Field (Sign Up Mode) */}
-          {isSignUp && (
-            <div className="form-group">
-              <label htmlFor="confirmPassword" className="form-label">
-                Confirm Password <span className="required-star">*</span>
-              </label>
-              <input
-                id="confirmPassword"
-                type="password"
-                className="form-input"
-                placeholder="Re-enter your password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                autoComplete="new-password"
-                disabled={isSubmitting}
-              />
-            </div>
-          )}
+            {/* Error Alert */}
+            {errorMessage && (
+              <div className="po-alert-banner error" role="alert">
+                {errorMessage}
+              </div>
+            )}
 
-          {/* Remember Me Checkbox (Sign In Mode) */}
-          {!isSignUp && (
-            <div className="remember-me-group">
-              <label className="checkbox-label-wrapper">
+            {/* Info Alert */}
+            {infoMessage && (
+              <div className="po-alert-banner info" role="alert">
+                {infoMessage}
+              </div>
+            )}
+
+            <form className="po-form" onSubmit={handleSubmit}>
+              {/* Role Selection (Sign Up Mode) */}
+              {isSignUp && (
+                <div className="po-field-group">
+                  <label className="po-label">Account Role</label>
+                  <div className="po-role-grid">
+                    <label className={`po-role-card ${signupRole === 'hr_manager' ? 'selected' : ''}`}>
+                      <input
+                        type="radio"
+                        name="role"
+                        checked={signupRole === 'hr_manager'}
+                        onChange={() => setSignupRole('hr_manager')}
+                      />
+                      <span>🏢 HR Admin</span>
+                    </label>
+                    <label className={`po-role-card ${signupRole === 'employee' ? 'selected' : ''}`}>
+                      <input
+                        type="radio"
+                        name="role"
+                        checked={signupRole === 'employee'}
+                        onChange={() => setSignupRole('employee')}
+                      />
+                      <span>👤 Employee</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {/* Email / Identifier Field */}
+              <div className="po-field-group">
+                <label htmlFor="email" className="po-label">
+                  {isSignUp ? 'Email' : 'Email or Employee ID'}
+                </label>
                 <input
-                  type="checkbox"
-                  className="custom-checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
+                  type="text"
+                  id="email"
+                  placeholder={isSignUp ? 'user@posystem.com' : 'user@posystem.com or EMP-101'}
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="po-input"
                   disabled={isSubmitting}
                 />
-                <span className="checkbox-text">Keep me signed in for 30 days</span>
-              </label>
-            </div>
-          )}
+              </div>
 
-          {/* Submit Button */}
-          <button type="submit" className="submit-signin-btn" disabled={isSubmitting}>
-            {isSubmitting
-              ? isSignUp
-                ? 'Creating account...'
-                : 'Signing in...'
-              : isSignUp
-              ? 'SIGN UP'
-              : 'SIGN IN'}
-          </button>
-        </form>
+              {/* Password Field */}
+              <div className="po-field-group">
+                <div className="po-label-row">
+                  <label htmlFor="pass" className="po-label">Pass</label>
+                  {!isSignUp && (
+                    <button
+                      type="button"
+                      className="po-forgot-link"
+                      onClick={handleForgotPassword}
+                      disabled={isSubmitting}
+                    >
+                      forgot pass?
+                    </button>
+                  )}
+                </div>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  id="pass"
+                  placeholder="••••••••"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="po-input"
+                  disabled={isSubmitting}
+                />
+              </div>
 
-        {/* Footer */}
-        <div className="login-footer">
-          <p className="signup-prompt">
-            {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
-            <button type="button" className="signup-link" onClick={toggleMode} disabled={isSubmitting}>
-              {isSignUp ? 'Sign In' : 'Sign Up'}
-            </button>
-          </p>
+              {/* Confirm Password (Sign Up Mode) */}
+              {isSignUp && (
+                <div className="po-field-group">
+                  <label htmlFor="confirmPass" className="po-label">Confirm Pass</label>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    id="confirmPass"
+                    placeholder="••••••••"
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="po-input"
+                    disabled={isSubmitting}
+                  />
+                </div>
+              )}
+
+              {/* Show Pass Checkbox */}
+              <div className="po-checkbox-row">
+                <input
+                  type="checkbox"
+                  id="togglePass"
+                  checked={showPassword}
+                  onChange={(e) => setShowPassword(e.target.checked)}
+                  className="po-checkbox"
+                  disabled={isSubmitting}
+                />
+                <label htmlFor="togglePass" className="po-checkbox-label">
+                  Show Pass
+                </label>
+              </div>
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                className="po-submit-btn"
+                disabled={isSubmitting}
+              >
+                {isSubmitting
+                  ? isSignUp ? 'Creating Account...' : 'Signing In...'
+                  : isSignUp ? 'Sign Up' : 'Sign In'}
+              </button>
+            </form>
+          </div>
+
+          {/* Trust Badges */}
+          <div className="po-trust-badges">
+            <span className="po-badge-item">
+              <svg className="po-badge-icon" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              Encrypted
+            </span>
+            <span className="po-badge-item">
+              <svg className="po-badge-icon" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              Direct Deposit
+            </span>
+            <span className="po-badge-item">
+              <svg className="po-badge-icon" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              Automated Tax
+            </span>
+          </div>
+
         </div>
-      </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="po-footer">
+        <div className="po-footer-container">
+          <p>&copy; 2026 PO HR &amp; Payroll Management System. All rights reserved.</p>
+          <div className="po-footer-links">
+            <a href="#privacy" className="po-footer-link">Privacy Policy</a>
+            <a href="#terms" className="po-footer-link">Terms of Service</a>
+            <a href="#security" className="po-footer-link">Security</a>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };

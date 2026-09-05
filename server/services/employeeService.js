@@ -29,6 +29,11 @@ const validateEmployeeReferences = async (data, employeeId = null) => {
       err.statusCode = 400;
       throw err;
     }
+    if (data.departmentId && jobPos.departmentId.toString() !== data.departmentId.toString()) {
+      const err = new Error('Selected job position does not belong to the selected department');
+      err.statusCode = 400;
+      throw err;
+    }
   }
 
   if (data.workingScheduleId) {
@@ -57,24 +62,60 @@ const validateEmployeeReferences = async (data, employeeId = null) => {
 };
 
 const createEmployee = async (data) => {
-  const existingCode = await Employee.findOne({ employeeCode: data.employeeCode });
+  const contractData = data.contract || null;
+  const employeePayload = { ...data };
+  delete employeePayload.contract;
+
+  if (!employeePayload.employeeCode) {
+    employeePayload.employeeCode = `EMP-${Date.now().toString().slice(-6)}`;
+  }
+
+  const existingCode = await Employee.findOne({ employeeCode: employeePayload.employeeCode });
   if (existingCode) {
-    const err = new Error(`Employee code '${data.employeeCode}' already exists`);
+    const err = new Error(`Employee code '${employeePayload.employeeCode}' already exists`);
     err.statusCode = 400;
     throw err;
   }
 
-  const existingEmail = await Employee.findOne({ email: data.email });
+  const existingEmail = await Employee.findOne({ email: employeePayload.email });
   if (existingEmail) {
-    const err = new Error(`Employee email '${data.email}' already exists`);
+    const err = new Error(`Employee email '${employeePayload.email}' already exists`);
     err.statusCode = 400;
     throw err;
   }
 
-  await validateEmployeeReferences(data);
+  await validateEmployeeReferences(employeePayload);
 
-  const employee = new Employee(data);
-  return await employee.save();
+  const employee = new Employee(employeePayload);
+  const savedEmployee = await employee.save();
+
+  // If initial contract data is provided, create the initial contract referencing saved employee
+  if (contractData && contractData.startDate && contractData.wage !== undefined) {
+    const contractService = require('./contractService');
+    const savedContract = await contractService.createContract({
+      employeeId: savedEmployee._id,
+      departmentId: savedEmployee.departmentId,
+      jobPositionId: savedEmployee.jobPositionId,
+      workingScheduleId: contractData.workingScheduleId || savedEmployee.workingScheduleId,
+      startDate: contractData.startDate,
+      endDate: contractData.endDate || null,
+      durationType: contractData.durationType || 'Permanent',
+      wage: contractData.wage,
+      wageFrequency: contractData.wageFrequency || 'Monthly',
+      salaryStructureId: contractData.salaryStructureId || null,
+      workLocation: contractData.workLocation || 'Hybrid (3 Days Office)',
+      probationPeriodMonths: Number(contractData.probationPeriodMonths ?? 3),
+      noticePeriodDays: Number(contractData.noticePeriodDays ?? 30),
+      overtimeAllowed: contractData.overtimeAllowed !== undefined ? Boolean(contractData.overtimeAllowed) : true,
+      status: 'active',
+    });
+
+    const result = savedEmployee.toObject();
+    result.contract = savedContract;
+    return result;
+  }
+
+  return savedEmployee;
 };
 
 const getEmployees = async ({ search, departmentId, jobPositionId, status, page = 1, limit = 20, skip = 0 }) => {
@@ -99,9 +140,10 @@ const getEmployees = async ({ search, departmentId, jobPositionId, status, page 
       .populate('managerId', 'fullName employeeCode')
       .populate('workingScheduleId', 'name totalWeeklyHours')
       .populate('userId', 'email role isActive')
+      .collation({ locale: 'en', numericOrdering: true })
+      .sort({ employeeCode: 1, createdAt: 1 })
       .skip(skip)
-      .limit(limit)
-      .sort({ createdAt: -1 }),
+      .limit(limit),
     Employee.countDocuments(query),
   ]);
 

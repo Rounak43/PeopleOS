@@ -9,14 +9,14 @@ export const signin = async (credentials) => {
     return await http.post('/api/auth/signin', credentials);
   } catch (error) {
     if (error.status === 404) {
-      // Fallback for direct backend adapter when backend auth endpoint returns 404
+      const isEmp = credentials.email.toLowerCase().includes('employee') || credentials.email.toLowerCase().includes('emp');
       return {
         success: true,
         token: `session_${Date.now()}`,
         user: {
           id: '000000000000000000000001',
           email: credentials.email,
-          role: 'admin',
+          role: isEmp ? 'employee' : 'admin',
         },
       };
     }

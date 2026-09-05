@@ -90,7 +90,69 @@ const createWorkingSchedule = async (data) => {
   return await schedule.save();
 };
 
-const getWorkingSchedules = async ({ page = 1, limit = 20, skip = 0 }) => {
+const DEFAULT_IT_SCHEDULES = [
+  {
+    name: 'Morning Shift (Mon-Fri, 9:00 AM - 6:00 PM)',
+    type: 'full_time',
+    totalWeeklyHours: 40,
+    lines: [
+      { dayOfWeek: 'monday', startTime: '09:00', endTime: '18:00', breakMinutes: 60 },
+      { dayOfWeek: 'tuesday', startTime: '09:00', endTime: '18:00', breakMinutes: 60 },
+      { dayOfWeek: 'wednesday', startTime: '09:00', endTime: '18:00', breakMinutes: 60 },
+      { dayOfWeek: 'thursday', startTime: '09:00', endTime: '18:00', breakMinutes: 60 },
+      { dayOfWeek: 'friday', startTime: '09:00', endTime: '18:00', breakMinutes: 60 },
+    ],
+  },
+  {
+    name: 'Evening Shift (Mon-Fri, 2:00 PM - 11:00 PM)',
+    type: 'full_time',
+    totalWeeklyHours: 40,
+    lines: [
+      { dayOfWeek: 'monday', startTime: '14:00', endTime: '23:00', breakMinutes: 60 },
+      { dayOfWeek: 'tuesday', startTime: '14:00', endTime: '23:00', breakMinutes: 60 },
+      { dayOfWeek: 'wednesday', startTime: '14:00', endTime: '23:00', breakMinutes: 60 },
+      { dayOfWeek: 'thursday', startTime: '14:00', endTime: '23:00', breakMinutes: 60 },
+      { dayOfWeek: 'friday', startTime: '14:00', endTime: '23:00', breakMinutes: 60 },
+    ],
+  },
+  {
+    name: 'Night Shift (Mon-Fri, 10:00 PM - 7:00 AM)',
+    type: 'shift',
+    totalWeeklyHours: 40,
+    lines: [
+      { dayOfWeek: 'monday', startTime: '22:00', endTime: '07:00', breakMinutes: 60 },
+      { dayOfWeek: 'tuesday', startTime: '22:00', endTime: '07:00', breakMinutes: 60 },
+      { dayOfWeek: 'wednesday', startTime: '22:00', endTime: '07:00', breakMinutes: 60 },
+      { dayOfWeek: 'thursday', startTime: '22:00', endTime: '07:00', breakMinutes: 60 },
+      { dayOfWeek: 'friday', startTime: '22:00', endTime: '07:00', breakMinutes: 60 },
+    ],
+  },
+  {
+    name: 'Part-Time Hourly Shift (Mon-Fri, 10:00 AM - 2:00 PM, Paid Per Hr)',
+    type: 'part_time',
+    totalWeeklyHours: 20,
+    lines: [
+      { dayOfWeek: 'monday', startTime: '10:00', endTime: '14:00', breakMinutes: 0 },
+      { dayOfWeek: 'tuesday', startTime: '10:00', endTime: '14:00', breakMinutes: 0 },
+      { dayOfWeek: 'wednesday', startTime: '10:00', endTime: '14:00', breakMinutes: 0 },
+      { dayOfWeek: 'thursday', startTime: '10:00', endTime: '14:00', breakMinutes: 0 },
+      { dayOfWeek: 'friday', startTime: '10:00', endTime: '14:00', breakMinutes: 0 },
+    ],
+  },
+];
+
+const seedITSchedulesIfMissing = async () => {
+  for (const sched of DEFAULT_IT_SCHEDULES) {
+    await WorkingSchedule.updateOne(
+      { name: sched.name },
+      { $setOnInsert: sched },
+      { upsert: true }
+    );
+  }
+};
+
+const getWorkingSchedules = async ({ page = 1, limit = 20, skip = 0 } = {}) => {
+  await seedITSchedulesIfMissing();
   const [items, total] = await Promise.all([
     WorkingSchedule.find().skip(skip).limit(limit).sort({ createdAt: -1 }),
     WorkingSchedule.countDocuments(),

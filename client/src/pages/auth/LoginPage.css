@@ -1,322 +1,374 @@
 /* =====================================================
-   PeopleOS — Login Page Styles
-   Pixel-accurate recreation of the design
+   PO System Portal — Sign In Page CSS
+   Minimal HR & Payroll Management Portal Theme
+   Typography: Plus Jakarta Sans, Background: #fafbfc, Accents: #f97316, #ea580c.
    ===================================================== */
 
-.login-container {
+.po-login-wrapper {
   min-height: 100vh;
   width: 100%;
+  background-color: #fafbfc;
+  color: #334155;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-sizing: border-box;
+}
+
+/* ── Main Centered Content Container ── */
+.po-login-main {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #FAF6F0;
-  padding: 24px;
+  padding: 48px 16px;
   box-sizing: border-box;
 }
 
-.login-card {
+.po-login-content-box {
   width: 100%;
-  max-width: 476px;
-  background: #FFFFFF;
-  border-radius: 24px;
-  padding: 44px 44px 38px 44px;
-  box-shadow: 0 4px 25px -4px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
-  box-sizing: border-box;
-  animation: cardFadeIn 0.3s ease-out;
+  max-width: 448px; /* max-w-md */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-@keyframes cardFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* ── Logo & Title Header ── */
+.po-header-brand {
+  text-align: center;
+  margin-bottom: 32px;
 }
 
-/* ── Brand Logo & Tagline ── */
-.login-brand {
-  margin-bottom: 30px;
+.po-logo-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px; /* rounded-2xl */
+  background-color: #fff7ed;
+  border: 1px solid #ffedd5;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
-.brand-logo {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 26px;
+.po-logo-p {
+  font-size: 30px;
   font-weight: 800;
-  letter-spacing: -0.4px;
-  color: #111827;
-  margin: 0;
-  line-height: 1.15;
+  color: #f97316;
+  line-height: 1;
 }
 
-.brand-accent {
-  color: #EA580C;
+.po-logo-o {
+  font-size: 30px;
+  font-weight: 300;
+  color: #fb923c;
+  line-height: 1;
 }
 
-.brand-tagline {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 13.5px;
-  font-weight: 400;
-  color: #6B7280;
-  margin: 5px 0 0 0;
-  line-height: 1.4;
-}
-
-/* ── Sign In Heading ── */
-.login-header {
-  margin-bottom: 24px;
-}
-
-.login-title {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 23px;
+.po-title {
+  font-size: 20px;
   font-weight: 700;
-  letter-spacing: -0.2px;
-  color: #111827;
-  margin: 0 0 6px 0;
-  line-height: 1.25;
-}
-
-.login-subtitle {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 13.5px;
-  font-weight: 400;
-  color: #6B7280;
+  color: #0f172a;
+  letter-spacing: -0.02em;
   margin: 0;
-  line-height: 1.45;
 }
 
-/* ── Info Banner (for forgot password / sign up feedback) ── */
-.login-info-banner {
-  background-color: #FFF7ED;
-  border: 1px solid #FFEDD5;
-  color: #C2410C;
-  font-size: 12.5px;
+.po-subtitle {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: #94a3b8;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+/* ── Auth Card ── */
+.po-auth-card {
+  width: 100%;
+  background-color: #ffffff;
+  border: 1px solid rgba(255, 237, 213, 0.85);
+  border-radius: 16px; /* rounded-2xl */
+  box-shadow: 0 20px 25px -5px rgba(249, 115, 22, 0.05), 0 8px 10px -6px rgba(249, 115, 22, 0.05);
+  padding: 28px;
+  box-sizing: border-box;
+}
+
+.po-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #f8fafc;
+  margin-bottom: 20px;
+}
+
+.po-card-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #1e293b;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.po-toggle-mode-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #f97316;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.po-toggle-mode-btn:hover {
+  color: #ea580c;
+  text-decoration: underline;
+}
+
+/* ── Banners ── */
+.po-alert-banner {
   padding: 10px 14px;
-  border-radius: 8px;
-  margin-bottom: 18px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 16px;
   line-height: 1.4;
+}
+
+.po-alert-banner.error {
+  background-color: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.po-alert-banner.info {
+  background-color: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #ffedd5;
 }
 
 /* ── Form Controls ── */
-.login-form {
+.po-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.po-field-group {
   display: flex;
   flex-direction: column;
 }
 
-.form-group {
-  margin-bottom: 18px;
-}
-
-.form-label {
-  display: block;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: #1F2937;
-  margin-bottom: 7px;
-  line-height: 1.3;
-}
-
-.required-star {
-  color: #DC2626;
-  font-weight: 600;
-  margin-left: 2px;
-}
-
-.form-label-row {
+.po-label-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 7px;
+  margin-bottom: 6px;
 }
 
-.form-label-row .form-label {
+.po-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+.po-label-row .po-label {
   margin-bottom: 0;
 }
 
-.forgot-password-btn {
+.po-forgot-link {
+  font-size: 12px;
+  color: #94a3b8;
+  text-decoration: none;
+  transition: color 0.15s ease;
   background: none;
   border: none;
   padding: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 12px;
-  font-weight: 500;
-  color: #EA580C;
   cursor: pointer;
-  text-decoration: none;
-  transition: color 0.15s ease;
 }
 
-.forgot-password-btn:hover {
-  text-decoration: underline;
-  color: #C2410C;
+.po-forgot-link:hover {
+  color: #ea580c;
 }
 
-/* ── Input Styling ── */
-.form-input {
+.po-input {
   width: 100%;
-  height: 44px;
-  background: #FFFFFF;
-  border: 1px solid #E5E7EB;
-  border-radius: 8px;
-  padding: 0 14px;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 13.5px;
-  color: #111827;
-  box-sizing: border-box;
+  padding: 10px 14px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px; /* rounded-xl */
+  font-size: 14px;
+  color: #0f172a;
+  font-family: inherit;
   outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
+  transition: all 0.15s ease;
 }
 
-.form-input::placeholder {
-  color: #9CA3AF;
-  font-weight: 400;
+.po-input::placeholder {
+  color: #94a3b8;
 }
 
-.form-input:focus {
-  border-color: #EA580C;
-  box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.12);
+.po-input:focus {
+  background-color: #ffffff;
+  border-color: #f97316;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2);
 }
 
-.password-input-wrapper {
-  position: relative;
-  width: 100%;
+/* ── Role Radio Selector (Sign Up Mode) ── */
+.po-role-grid {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
 }
 
-.password-input {
-  padding-right: 42px;
-}
-
-.password-toggle-btn {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  padding: 4px;
+.po-role-card {
+  flex: 1;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
   cursor: pointer;
-  color: #9CA3AF;
-  border-radius: 4px;
-  transition: color 0.15s ease;
+  transition: all 0.15s ease;
 }
 
-.password-toggle-btn:hover {
-  color: #4B5563;
+.po-role-card.selected {
+  border-color: #f97316;
+  background-color: #fff7ed;
+  color: #c2410c;
 }
 
-/* ── Remember Me Checkbox ── */
-.remember-me-group {
-  margin-top: 2px;
-  margin-bottom: 22px;
-}
-
-.checkbox-label-wrapper {
-  display: inline-flex;
+/* ── Checkbox Row ── */
+.po-checkbox-row {
+  display: flex;
   align-items: center;
+  padding-top: 4px;
+}
+
+.po-checkbox {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid #cbd5e1;
+  accent-color: #f97316;
+  cursor: pointer;
+  margin: 0;
+}
+
+.po-checkbox-label {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
   cursor: pointer;
   user-select: none;
 }
 
-.custom-checkbox {
+/* ── Submit Button ── */
+.po-submit-btn {
+  width: 100%;
+  margin-top: 8px;
+  padding: 12px 16px;
+  background: linear-gradient(90deg, #f97316 0%, #ea580c 100%);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.25);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.po-submit-btn:hover {
+  background: linear-gradient(90deg, #ea580c 0%, #c2410c 100%);
+  box-shadow: 0 6px 16px rgba(249, 115, 22, 0.35);
+}
+
+.po-submit-btn:active {
+  transform: scale(0.99);
+}
+
+.po-submit-btn:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+/* ── Trust Badges ── */
+.po-trust-badges {
+  margin-top: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.po-badge-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.po-badge-icon {
   width: 16px;
   height: 16px;
-  border-radius: 4px;
-  border: 1.5px solid #D1D5DB;
-  accent-color: #EA580C;
-  cursor: pointer;
-  margin: 0;
-}
-
-.checkbox-text {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 13px;
-  font-weight: 400;
-  color: #4B5563;
-  margin-left: 9px;
-  line-height: 1;
-}
-
-/* ── Submit Sign In Button ── */
-.submit-signin-btn {
-  width: 100%;
-  height: 46px;
-  background-color: #EA580C;
-  color: #FFFFFF;
-  border: none;
-  border-radius: 8px;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 13.5px;
-  font-weight: 700;
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
-  box-shadow: 0 1px 3px rgba(234, 88, 12, 0.2);
-}
-
-.submit-signin-btn:hover {
-  background-color: #D9480F;
-  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.28);
-}
-
-.submit-signin-btn:active {
-  transform: translateY(1px);
+  color: #f97316;
 }
 
 /* ── Footer ── */
-.login-footer {
-  margin-top: 24px;
-  text-align: center;
+.po-footer {
+  width: 100%;
+  border-top: 1px solid #f1f5f9;
+  background-color: #ffffff;
+  padding: 24px 0;
 }
 
-.signup-prompt {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 13px;
-  color: #6B7280;
-  margin: 0;
+.po-footer-container {
+  max-width: 1152px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 12px;
+  color: #94a3b8;
 }
 
-.signup-link {
-  background: none;
-  border: none;
-  padding: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  color: #EA580C;
-  cursor: pointer;
+@media (min-width: 640px) {
+  .po-footer-container {
+    flex-direction: row;
+  }
+}
+
+.po-footer-links {
+  display: flex;
+  gap: 24px;
+}
+
+.po-footer-link {
+  color: #94a3b8;
   text-decoration: none;
   transition: color 0.15s ease;
 }
 
-.signup-link:hover {
-  text-decoration: underline;
-  color: #C2410C;
-}
-
-/* ── Mobile responsiveness ── */
-@media (max-width: 520px) {
-  .login-container {
-    padding: 16px;
-  }
-
-  .login-card {
-    padding: 32px 24px 28px 24px;
-    border-radius: 18px;
-  }
-
-  .brand-logo {
-    font-size: 24px;
-  }
-
-  .login-title {
-    font-size: 21px;
-  }
+.po-footer-link:hover {
+  color: #ea580c;
 }

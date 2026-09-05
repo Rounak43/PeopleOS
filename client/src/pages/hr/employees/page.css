@@ -30,6 +30,107 @@
   margin-bottom: 0;
 }
 
+/* Rows Limit Selector */
+.rows-limit-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.rows-limit-select {
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-text);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.rows-limit-select:focus, .rows-limit-select:hover {
+  border-color: var(--color-primary);
+}
+
+/* Framed Table Container Card */
+.table-container-card {
+  padding: 0 !important;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+}
+
+.table-meta-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: #FAF4EE;
+  border-bottom: 1px solid #EFE2D4;
+  font-size: var(--font-size-xs);
+  color: var(--color-text);
+}
+
+.meta-sequence-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #FFFFFF;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  border: 1px solid #EFE2D4;
+  font-weight: 600;
+  color: #78350F;
+}
+
+.meta-stats-text {
+  color: var(--color-text-secondary);
+}
+
+.table-scroll-frame {
+  max-height: 620px;
+  overflow-y: auto;
+  overflow-x: auto;
+}
+
+.employees-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-xs);
+}
+
+.employees-data-table th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: #FAF4EE;
+  padding: 12px 16px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid #EFE2D4;
+}
+
+.employees-data-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.employees-data-table tr:hover td {
+  background-color: rgba(254, 243, 199, 0.25);
+}
+
 .employee-cell {
   display: flex;
   align-items: center;
@@ -37,31 +138,42 @@
 }
 
 .emp-avatar-icon {
-  font-size: 20px;
+  font-size: 18px;
   background: var(--color-primary-subtle);
   color: var(--color-primary);
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   border: 1px solid #FFEDD5;
+  flex-shrink: 0;
+}
+
+.emp-name-block {
+  display: flex;
+  flex-direction: column;
 }
 
 .emp-sub-text {
-  font-size: var(--font-size-xs);
+  font-size: 11px;
   color: var(--color-text-secondary);
 }
 
 .dept-code-tag {
+  display: inline-block;
   background: var(--color-primary-subtle);
   color: var(--color-primary);
   padding: 3px 10px;
   border-radius: 9999px;
-  font-size: var(--font-size-xs);
+  font-size: 11px;
   font-weight: 600;
   border: 1px solid #FFEDD5;
+  white-space: nowrap;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .emp-id-tag {
@@ -69,20 +181,31 @@
   color: var(--color-text);
   padding: 3px 8px;
   border-radius: var(--radius-sm);
-  font-size: var(--font-size-xs);
+  font-size: 11px;
   font-family: monospace;
+  font-weight: 700;
   border: 1px solid var(--color-border);
+}
+
+.job-title-text {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.schedule-text {
+  color: var(--color-text-secondary);
+  font-size: 11px;
 }
 
 .btn-link {
   background: none;
   border: none;
   color: var(--color-primary);
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   padding: 0;
   text-align: left;
-  font-size: var(--font-size-sm);
+  font-size: 13px;
   font-family: inherit;
   transition: var(--transition);
 }
@@ -91,28 +214,54 @@
   text-decoration: underline;
 }
 
-.btn-badge-link {
-  background: var(--color-primary-subtle);
-  border: 1px solid #FFEDD5;
-  color: var(--color-primary);
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  padding: 4px 12px;
-  border-radius: 9999px;
-  cursor: pointer;
-  transition: var(--transition);
-}
-.btn-badge-link:hover {
-  background: var(--color-primary);
-  color: var(--color-text-on-primary);
-  border-color: var(--color-primary);
-}
-
 .actions-cell {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 4px;
+}
+
+/* Pagination Footer */
+.table-pagination-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: #FAF4EE;
+  border-top: 1px solid #EFE2D4;
+}
+
+.pagination-page-numbers {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.page-num-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid #EFE2D4;
+  background: #FFFFFF;
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.page-num-btn:hover {
+  background: #FDF9F5;
+  border-color: #EA580C;
+}
+
+.page-num-btn.active {
+  background: #EA580C;
+  color: #FFFFFF;
+  border-color: #EA580C;
 }
 
 .form-grid {
@@ -250,4 +399,148 @@
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 8px;
+}
+
+/* Kanban Card View Styles */
+.view-toggle-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: #FAF4EE;
+  padding: 3px;
+  border-radius: var(--radius-md);
+  border: 1px solid #EFE2D4;
+}
+
+.view-toggle-btn {
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.view-toggle-btn.active {
+  background: #FFFFFF;
+  color: var(--color-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.kanban-grid-container {
+  padding: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  max-height: 640px;
+  overflow-y: auto;
+  background: var(--color-bg);
+}
+
+.employee-kanban-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.employee-kanban-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  border-color: #FED7AA;
+}
+
+.kanban-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.kanban-user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.kanban-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--color-primary-subtle);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  border: 1px solid #FFEDD5;
+  flex-shrink: 0;
+}
+
+.kanban-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.kanban-emp-name {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--color-text);
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.kanban-emp-name:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.kanban-emp-email {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  word-break: break-all;
+}
+
+.kanban-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--color-border);
+}
+
+.kanban-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+}
+
+.kanban-info-label {
+  color: var(--color-text-secondary);
+}
+
+.kanban-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
 }

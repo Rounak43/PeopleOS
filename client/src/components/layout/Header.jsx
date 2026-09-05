@@ -33,6 +33,10 @@ const Header = () => {
     day: 'numeric',
   });
 
+  const location = useLocation();
+  const isHRRoute = location.pathname.startsWith('/hr');
+  const portalTitle = isHRRoute ? 'HR Portal' : 'Employee Portal';
+
   return (
     <header className="aegis-header">
       <div className="aegis-header-left">
@@ -45,7 +49,7 @@ const Header = () => {
           </svg>
         </button>
 
-        <h1 className="aegis-header-title">Employee Portal</h1>
+        <h1 className="aegis-header-title">{portalTitle}</h1>
 
         {/* Date Chip */}
         <div className="aegis-date-chip">

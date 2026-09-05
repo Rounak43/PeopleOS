@@ -2,7 +2,7 @@
  * PeopleOS — Working Schedules Page
  * Complete HR Management Module for Working Schedules
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   getWorkingSchedules,
   createWorkingSchedule,
@@ -284,6 +284,34 @@ const WorkingSchedulesPage = () => {
     }
   };
 
+  // Sort schedules sequentially (Morning -> Evening -> Night -> Part-time)
+  const sortedSchedules = useMemo(() => {
+    const order = ['morning', 'evening', 'night', 'hourly', 'intern'];
+    return [...schedules].sort((a, b) => {
+      const nameA = (a.name || '').toLowerCase();
+      const nameB = (b.name || '').toLowerCase();
+      const idxA = order.findIndex((key) => nameA.includes(key));
+      const idxB = order.findIndex((key) => nameB.includes(key));
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return nameA.localeCompare(nameB);
+    });
+  }, [schedules]);
+
+  // Helper to parse title and timing subtitle from raw schedule name
+  const parseScheduleTitle = (rawName) => {
+    if (!rawName) return { title: 'Standard Schedule', timing: '' };
+    const match = rawName.match(/^([^(]+)(?:\(([^)]+)\))?/);
+    if (match) {
+      return {
+        title: match[1].trim(),
+        timing: match[2] ? match[2].trim() : '',
+      };
+    }
+    return { title: rawName, timing: '' };
+  };
+
   const typeOptions = [
     { value: 'full_time', label: 'Full Time' },
     { value: 'part_time', label: 'Part Time' },
@@ -296,7 +324,7 @@ const WorkingSchedulesPage = () => {
       <div className="page-header">
         <div>
           <h2 className="page-title">Working Schedules</h2>
-          <p className="page-subtitle">Configure employee working hours and shifts</p>
+          <p className="page-subtitle">Configure employee working hours, IT shifts, and part-time schedules</p>
         </div>
         <Button variant="primary" onClick={handleOpenCreate}>
           + Create Working Schedule
@@ -318,49 +346,83 @@ const WorkingSchedulesPage = () => {
           onAction={handleOpenCreate}
         />
       ) : (
-        <div className="table-responsive">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Schedule Name</th>
-                <th>Type</th>
-                <th>Total Weekly Hours</th>
-                <th>Working Days</th>
-                <th style={{ width: '180px' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {schedules.map((sched) => (
-                <tr key={sched._id}>
-                  <td style={{ fontWeight: '600' }}>{sched.name}</td>
-                  <td>
-                    <span className={`type-badge type-${sched.type}`}>
-                      {(sched.type || '').replace('_', ' ')}
-                    </span>
-                  </td>
-                  <td style={{ fontWeight: '600', color: 'var(--color-primary)' }}>
-                    {sched.totalWeeklyHours} hrs/wk
-                  </td>
-                  <td>
-                    {Array.isArray(sched.lines) ? `${sched.lines.length} days` : '0 days'}
-                  </td>
-                  <td>
-                    <div className="action-buttons">
-                      <Button variant="secondary" size="sm" onClick={() => handleOpenView(sched)}>
-                        View
-                      </Button>
-                      <Button variant="secondary" size="sm" onClick={() => handleOpenEdit(sched)}>
-                        Edit
-                      </Button>
-                      <Button variant="danger" size="sm" onClick={() => handleOpenDelete(sched)}>
-                        Delete
-                      </Button>
-                    </div>
-                  </td>
+        <div className="table-container-card card">
+          {/* Table Header Controls Bar */}
+          <div className="table-meta-bar">
+            <div className="meta-sequence-pill">
+              <span>⏰ IT Work Schedules:</span> <strong>{sortedSchedules.length} Active Shifts</strong>
+            </div>
+
+            <div className="meta-stats-text">
+              Sequential Arrangement: Morning, Evening, Night &amp; Part-Time Shifts
+            </div>
+          </div>
+
+          {/* Framed Data Table */}
+          <div className="table-scroll-frame">
+            <table className="schedules-data-table">
+              <thead>
+                <tr>
+                  <th style={{ width: '38%' }}>Schedule Name &amp; Work Hours</th>
+                  <th style={{ width: '15%' }}>Shift Type</th>
+                  <th style={{ width: '18%' }}>Weekly Hours</th>
+                  <th style={{ width: '14%' }}>Working Days</th>
+                  <th style={{ width: '15%', textAlign: 'right' }}>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {sortedSchedules.map((sched) => {
+                  const { title, timing } = parseScheduleTitle(sched.name);
+                  return (
+                    <tr key={sched._id}>
+                      <td>
+                        <div className="employee-cell">
+                          <span className="emp-avatar-icon">⏱️</span>
+                          <div className="emp-name-block">
+                            <button
+                              className="btn-link"
+                              onClick={() => handleOpenView(sched)}
+                            >
+                              {title}
+                            </button>
+                            {timing && <div className="emp-sub-text">{timing}</div>}
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`type-badge type-${sched.type}`}>
+                          {(sched.type || '').replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td>
+                        <span className="weekly-hours-tag">
+                          {sched.totalWeeklyHours} hrs/wk
+                        </span>
+                      </td>
+                      <td>
+                        <span className="working-days-tag">
+                          {Array.isArray(sched.lines) ? `${sched.lines.length} Days / Week` : '0 Days'}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <div className="actions-cell">
+                          <Button variant="ghost" size="sm" onClick={() => handleOpenView(sched)}>
+                            View
+                          </Button>
+                          <Button variant="secondary" size="sm" onClick={() => handleOpenEdit(sched)}>
+                            Edit
+                          </Button>
+                          <Button variant="danger" size="sm" onClick={() => handleOpenDelete(sched)}>
+                            Delete
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

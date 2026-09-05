@@ -23,11 +23,11 @@ const EmployeeSettingsPage    = lazy(() => import('../pages/employee/settings/Em
 // ── HR Pages ──────────────────────────────────
 const EmployeesPage        = lazy(() => import('../pages/hr/employees/EmployeesPage'));
 const DepartmentsPage      = lazy(() => import('../pages/hr/departments/DepartmentsPage'));
-const JobPositionsPage     = lazy(() => import('../pages/hr/jobPositions/JobPositionsPage'));
 const WorkingSchedulesPage = lazy(() => import('../pages/hr/workingSchedules/WorkingSchedulesPage'));
 const ContractsPage        = lazy(() => import('../pages/hr/contracts/ContractsPage'));
 const AttendancePage       = lazy(() => import('../pages/hr/attendance/AttendancePage'));
 const TimeOffPage          = lazy(() => import('../pages/hr/timeOff/TimeOffPage'));
+const HRPayrollPage        = lazy(() => import('../pages/hr/payroll/HRPayrollPage'));
 
 const RootRedirect = () => {
   const { user } = useAuth();
@@ -62,7 +62,7 @@ const AppRoutes = () => {
             <Route element={<ProtectedRoute allowedRoles={['admin', 'hr_manager', 'hr_payroll_user', 'hr_payroll_manager']} />}>
               <Route path="/hr/employees"          element={<EmployeesPage />} />
               <Route path="/hr/departments"        element={<DepartmentsPage />} />
-              <Route path="/hr/job-positions"      element={<JobPositionsPage />} />
+              <Route path="/hr/job-positions"      element={<Navigate to="/hr/employees" replace />} />
               <Route path="/hr/working-schedules"  element={<WorkingSchedulesPage />} />
               <Route path="/hr/contracts"          element={<ContractsPage />} />
               <Route path="/hr/attendance"         element={<AttendancePage />} />
@@ -70,6 +70,7 @@ const AppRoutes = () => {
               <Route path="/hr/time-off/requests"  element={<TimeOffPage />} />
               <Route path="/hr/time-off/allocations" element={<TimeOffPage />} />
               <Route path="/hr/time-off/types"       element={<TimeOffPage />} />
+              <Route path="/hr/payroll"            element={<HRPayrollPage />} />
             </Route>
 
             {/* Catch-all inside layout */}

@@ -78,11 +78,11 @@ const EMPLOYEE_LINKS = [
 const HR_LINKS = [
   { path: '/hr/employees',          label: 'Employees',         icon: '👥' },
   { path: '/hr/departments',        label: 'Departments',       icon: '🏢' },
-  { path: '/hr/job-positions',      label: 'Job Positions',     icon: '💼' },
   { path: '/hr/working-schedules',  label: 'Work Schedules',    icon: '🗓️' },
   { path: '/hr/contracts',          label: 'Contracts',         icon: '📄' },
   { path: '/hr/attendance',         label: 'Attendance',        icon: '⏱️' },
   { path: '/hr/time-off',           label: 'Time Off',          icon: '🏖️' },
+  { path: '/hr/payroll',            label: 'Payroll',           icon: '💰' },
 ];
 
 const Sidebar = () => {
