@@ -1,23 +1,16 @@
-/**
- * PeopleOS — Central API Route Registration
- *
- * All backend routes are registered here.
- * Module routes will be added by Member 1 as each module is implemented.
- *
- * OWNER: Member 1 (Backend)
- */
-
 const express = require('express');
-const { sendSuccess } = require('../utils/response');
+const { mongoose } = require('../config/db');
 
 const router = express.Router();
 
-// ─────────────────────────────────────────────
-// Health Check
-// GET /api/health
-// ─────────────────────────────────────────────
 router.get('/health', (req, res) => {
-  sendSuccess(res, { timestamp: new Date().toISOString() }, 'PeopleOS API is running');
+  const isConnected = mongoose.connection.readyState === 1;
+
+  res.status(isConnected ? 200 : 503).json({
+    success: true,
+    message: 'PeopleOS API is running',
+    database: isConnected ? 'connected' : 'disconnected',
+  });
 });
 
 // ─────────────────────────────────────────────

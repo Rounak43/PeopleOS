@@ -1,20 +1,29 @@
-/**
- * PeopleOS — Server Entry Point
- *
- * Loads environment variables and starts the HTTP server.
- */
-
 require('dotenv').config();
 
 const app = require('./app');
+const { connectDB } = require('./config/db');
 
-const PORT = process.env.PORT || 5000;
+const PORT = parseInt(process.env.PORT, 10) || 5000;
 
-app.listen(PORT, () => {
-  console.log('─────────────────────────────────────────');
-  console.log(`  PeopleOS API Server`);
-  console.log(`  Running on: http://localhost:${PORT}`);
-  console.log(`  Health:     http://localhost:${PORT}/api/health`);
-  console.log(`  Env:        ${process.env.NODE_ENV || 'development'}`);
-  console.log('─────────────────────────────────────────');
+const startServer = async () => {
+  console.log('  PeopleOS API Server — Starting...');
+  try {
+    await connectDB();
+  } catch (err) {
+    console.error('[FATAL] Cannot connect to MongoDB database:');
+    console.error(`        ${err.message}`);
+    console.error('        Make sure MongoDB Server is running and MONGODB_URI in .env is correct.');
+    process.exit(1);
+  }
+
+  app.listen(PORT, () => {
+    console.log(`  Running on:  http://localhost:${PORT}`);
+    console.log(`  Health:      http://localhost:${PORT}/api/health`);
+    console.log(`  Env:         ${process.env.NODE_ENV || 'development'}`);
+  });
+};
+
+startServer().catch((err) => {
+  console.error('[FATAL] Unexpected startup error:', err);
+  process.exit(1);
 });
