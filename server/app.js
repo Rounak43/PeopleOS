@@ -6,17 +6,16 @@
  */
 
 const express = require('express');
-const cors = require('cors');
+const cors    = require('cors');
 
-const apiRoutes = require('./routes/index');
-const notFound = require('./middleware/notFound');
+const apiRoutes    = require('./routes/index');
+const notFound     = require('./middleware/notFound');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
 // ─────────────────────────────────────────────
 // CORS
-// Allow the React dev server to communicate with this API.
 // ─────────────────────────────────────────────
 const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
   .split(',')
@@ -25,11 +24,10 @@ const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (e.g. curl, Postman)
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        callback(new Error(`CORS policy: origin ${origin} not allowed`));
+        callback(new Error(`CORS: origin "${origin}" not allowed`));
       }
     },
     credentials: true,
@@ -43,7 +41,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ─────────────────────────────────────────────
-// Request Logger (development)
+// Request Logger (development only)
 // ─────────────────────────────────────────────
 if (process.env.NODE_ENV !== 'production') {
   app.use((req, _res, next) => {

@@ -1,20 +1,7 @@
-/**
- * PeopleOS — Native fetch() HTTP Utility
- *
- * Provides GET, POST, PUT, DELETE wrappers using native fetch().
- * DO NOT replace with Axios or any other HTTP client.
- *
- * All service files must import from this module for API calls.
- */
 
 import { API_BASE_URL } from './apiConfig';
 
-/**
- * Core request function.
- * @param {string} endpoint - API path, e.g. '/api/employees'
- * @param {RequestInit} options - fetch options (method, body, headers, etc.)
- * @returns {Promise<{ success: boolean, data?: *, message?: string }>}
- */
+
 const request = async (endpoint, options = {}) => {
   const url = `${API_BASE_URL}${endpoint}`;
 
@@ -23,10 +10,27 @@ const request = async (endpoint, options = {}) => {
     Accept: 'application/json',
   };
 
-  // Attach auth token if present (Member 1 will set localStorage key)
   const token = localStorage.getItem('peopleos_token');
   if (token) {
     defaultHeaders['Authorization'] = `Bearer ${token}`;
+  }
+
+  const rawUser = localStorage.getItem('peopleos_user');
+  if (rawUser) {
+    try {
+      const user = JSON.parse(rawUser);
+      if (user.id || user._id) {
+        defaultHeaders['x-user-id'] = user.id || user._id;
+      }
+      if (user.role) {
+        defaultHeaders['x-user-role'] = user.role;
+      }
+      if (user.employeeId) {
+        defaultHeaders['x-employee-id'] = user.employeeId;
+      }
+    } catch {
+      // Ignore JSON parsing errors
+    }
   }
 
   const config = {
@@ -37,24 +41,22 @@ const request = async (endpoint, options = {}) => {
     },
   };
 
-  // Serialize body if provided as object
   if (config.body && typeof config.body === 'object') {
     config.body = JSON.stringify(config.body);
   }
 
   const response = await fetch(url, config);
 
-  // Parse JSON body (even for error responses)
+
   let responseData;
   try {
     responseData = await response.json();
   } catch {
-    // Non-JSON response (e.g. empty 204)
     responseData = null;
   }
 
   if (!response.ok) {
-    // Throw an error object that matches the backend envelope
+
     const error = new Error(
       responseData?.message || `HTTP ${response.status}: ${response.statusText}`
     );
@@ -66,9 +68,6 @@ const request = async (endpoint, options = {}) => {
   return responseData;
 };
 
-// ─────────────────────────────────────────────
-// Public HTTP methods
-// ─────────────────────────────────────────────
 
 export const get = (endpoint, options = {}) =>
   request(endpoint, { method: 'GET', ...options });

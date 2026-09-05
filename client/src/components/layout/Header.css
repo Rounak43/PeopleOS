@@ -1,43 +1,168 @@
-/* PeopleOS — Header styles */
+/* AegisFlow — Header Styles (Exact Match to Screenshot) */
 
-.app-header {
-  height: var(--header-height);
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
+.aegis-header {
+  height: 68px;
+  background-color: #FAF4EE;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--spacing-xl);
+  padding: 0 32px 0 24px;
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: var(--shadow-sm);
+  font-family: var(--font-family);
 }
 
-.app-header-title {
-  font-size: var(--font-size-lg);
-  font-weight: 600;
-  color: var(--color-text);
-  line-height: 1;
-}
-
-.header-user-placeholder {
+.aegis-header-left {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
-  border-radius: var(--radius-xl);
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  cursor: pointer;
-  transition: var(--transition);
+  gap: 16px;
 }
-.header-user-placeholder:hover { background: var(--color-primary-bg); }
 
-.header-avatar { font-size: 18px; }
+/* Hamburger */
+.aegis-menu-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid #EFE2D4;
+  background: #FDF9F5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #44403C;
+  transition: all 0.15s ease;
+}
 
-.header-username {
-  font-size: var(--font-size-sm);
+.aegis-menu-btn:hover {
+  background: #F5EAE0;
+}
+
+.aegis-header-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #1C1917;
+  letter-spacing: -0.01em;
+}
+
+/* Date Chip */
+.aegis-date-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: #FDF9F5;
+  border: 1px solid #EFE2D4;
+  border-radius: 9999px;
+  font-size: 12px;
+  color: #57534E;
   font-weight: 500;
-  color: var(--color-text);
+}
+
+.aegis-date-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #F59E0B;
+}
+
+/* Right Section */
+.aegis-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Bell Button */
+.aegis-bell-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid #EFE2D4;
+  background: #FDF9F5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #78350F;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.15s ease;
+}
+
+.aegis-bell-btn:hover {
+  background: #F5EAE0;
+}
+
+.aegis-bell-badge {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  width: 14px;
+  height: 14px;
+  background-color: #F97316;
+  color: #FFFFFF;
+  border-radius: 50%;
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid #FAF4EE;
+}
+
+/* User Pill */
+.aegis-user-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 14px 4px 6px;
+  border-radius: 9999px;
+  background: #FDF9F5;
+  border: 1px solid #EFE2D4;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.aegis-user-pill:hover {
+  background: #F5EAE0;
+}
+
+.aegis-avatar-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #FCE1CB;
+  color: #8C4E1E;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid #F6CCA9;
+}
+
+.aegis-user-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.aegis-user-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #1C1917;
+  line-height: 1.2;
+}
+
+.aegis-user-role {
+  font-size: 9.5px;
+  color: #78716C;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+}
+
+.aegis-chevron {
+  color: #78716C;
+  margin-left: 2px;
 }

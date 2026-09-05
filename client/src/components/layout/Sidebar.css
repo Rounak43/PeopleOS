@@ -1,87 +1,122 @@
-/* PeopleOS — Sidebar styles */
+/* AegisFlow — Sidebar Styling (Exact Match to Screenshot) */
 
-.sidebar {
-  width: var(--sidebar-width);
+.sidebar.aegis-sidebar {
+  width: 220px;
   min-height: 100vh;
-  background: var(--color-sidebar-bg);
+  background-color: #FAF4EE;
+  border-right: 1px solid rgba(228, 228, 231, 0.4);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
   position: sticky;
   top: 0;
   overflow-y: auto;
+  font-family: var(--font-family);
 }
 
-/* ── Brand ── */
-.sidebar-brand {
+/* Brand */
+.aegis-sidebar .sidebar-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 20px 20px 16px;
-  border-bottom: 1px solid rgba(255,255,255,0.07);
+  gap: 12px;
+  padding: 24px 20px 20px 24px;
+  border-bottom: none;
 }
 
-.sidebar-brand-icon { font-size: 22px; }
+.sidebar-brand-icon-box {
+  width: 32px;
+  height: 32px;
+  background: #EEDCCE;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
 
 .sidebar-brand-name {
-  font-size: var(--font-size-lg);
+  font-size: 18px;
   font-weight: 700;
-  color: #ffffff;
-  letter-spacing: -0.3px;
+  color: #1C1917;
+  letter-spacing: -0.02em;
 }
 
-/* ── Navigation ── */
-.sidebar-nav { flex: 1; padding: 12px 0; }
-
-.sidebar-section { margin-bottom: 4px; }
-
-.sidebar-section-label {
-  display: block;
-  padding: 10px 20px 4px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: rgba(199, 210, 254, 0.45);
+/* Navigation List */
+.sidebar-nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 0;
 }
 
-.sidebar-link {
+.aegis-sidebar-link {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 9px 20px;
-  color: var(--color-sidebar-text);
-  font-size: var(--font-size-sm);
-  font-weight: 400;
+  gap: 12px;
+  padding: 12px 18px;
+  margin: 2px 14px 2px 12px;
+  border-radius: 12px 20px 20px 12px;
+  color: #57534E;
+  font-size: 13.5px;
+  font-weight: 500;
   text-decoration: none;
-  transition: all 0.15s ease;
-  border-radius: 0;
+  transition: all 0.15s ease-in-out;
   cursor: pointer;
 }
 
-.sidebar-link:hover {
-  background: var(--color-sidebar-hover);
-  color: #ffffff;
+.aegis-sidebar-link:hover {
+  background-color: #F6ECE2;
+  color: #292524;
   text-decoration: none;
 }
 
-.sidebar-link--active {
-  background: rgba(79, 70, 229, 0.3);
-  color: #ffffff;
-  font-weight: 500;
-  border-right: 3px solid var(--color-primary-light);
+.aegis-sidebar-link--active {
+  background-color: #FCE4D0 !important;
+  color: #9A4E1B !important;
+  font-weight: 600 !important;
 }
 
-.sidebar-link-icon { font-size: 15px; flex-shrink: 0; }
-.sidebar-link-label { flex: 1; }
-
-/* ── Footer ── */
-.sidebar-footer {
-  padding: 14px 20px;
-  border-top: 1px solid rgba(255,255,255,0.07);
+.aegis-link-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+  flex-shrink: 0;
 }
 
-.sidebar-footer-text {
-  font-size: var(--font-size-xs);
-  color: rgba(199, 210, 254, 0.35);
+.aegis-sidebar-link--active .aegis-link-icon {
+  color: #B45309;
+}
+
+.aegis-link-label {
+  flex: 1;
+}
+
+/* Footer / Logout */
+.aegis-sidebar .sidebar-footer {
+  margin-top: auto;
+  padding: 24px 20px;
+  border-top: none;
+}
+
+.aegis-logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border: none;
+  color: #57534E;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: all 0.15s ease-in-out;
+  width: 100%;
+}
+
+.aegis-logout-btn:hover {
+  background-color: #F6ECE2;
+  color: #B91C1C;
 }

@@ -1,7 +1,4 @@
-/**
- * PeopleOS — Contract Service
- * Member 2 (HR Frontend) — API communication only, no business logic.
- */
+
 import http from '../common/http';
 
 const BASE = '/api/contracts';
