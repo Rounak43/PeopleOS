@@ -1,11 +1,10 @@
-/**
- * PeopleOS — Login Page
- * Exact implementation matching the design specification.
- */
+
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './LoginPage.css';
 
 const LoginPage = () => {
+  const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -15,18 +14,17 @@ const LoginPage = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const userEmail = email.trim() || 'name@peopleos.com';
+    // Persist login token and user session for PeopleOS
     localStorage.setItem('peopleos_token', 'session_' + Date.now());
     localStorage.setItem(
       'peopleos_user',
       JSON.stringify({
-        email: userEmail,
-        name: userEmail.split('@')[0],
+        email: email || 'name@peopleos.com',
+        name: email ? email.split('@')[0] : 'Administrator',
         role: 'Admin',
       })
     );
-    setInfoMessage(`✓ Signed in successfully as ${userEmail}`);
-    setTimeout(() => setInfoMessage(''), 4000);
+    navigate('/hr/employees');
   };
 
   const handleForgotPassword = (e) => {
