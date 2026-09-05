@@ -2,31 +2,48 @@ const mongoose = require('mongoose');
 
 const timeOffAllocationSchema = new mongoose.Schema(
   {
-    employee: {
+    employeeId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Employee',
       required: true,
     },
-    timeOffType: {
+    timeOffTypeId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'TimeOffType',
       required: true,
     },
-    allocatedDays: {
+    allocatedAmount: {
       type: Number,
       required: true,
       min: 0,
     },
-    usedDays: {
+    takenAmount: {
       type: Number,
       default: 0,
+      min: 0,
     },
-    year: {
+    remainingAmount: {
       type: Number,
       required: true,
+      min: 0,
+    },
+    validFrom: {
+      type: Date,
+      default: Date.now,
+    },
+    validTo: {
+      type: Date,
+      default: null,
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'approved', 'expired'],
+      default: 'approved',
     },
   },
-  { timestamps: true }
+  { timestamps: true, collection: 'timeOffAllocations' }
 );
+
+timeOffAllocationSchema.index({ employeeId: 1, timeOffTypeId: 1 });
 
 module.exports = mongoose.model('TimeOffAllocation', timeOffAllocationSchema);

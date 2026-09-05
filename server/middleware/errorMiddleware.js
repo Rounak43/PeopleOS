@@ -1,11 +1,11 @@
 /**
- * PeopleOS — Global Error Handler Middleware
+ * PeopleOS — Centralized Error Handling Middleware
  */
 
 const { sendError } = require('../utils/apiResponse');
 
-const errorHandler = (err, req, res, next) => {
-  console.error(`[ERROR] ${req.method} ${req.originalUrl}`, err);
+const errorMiddleware = (err, req, res, next) => {
+  console.error('[Error Handler]', err);
 
   const statusCode = err.statusCode || err.status || 500;
   const message = err.message || 'Internal Server Error';
@@ -14,4 +14,4 @@ const errorHandler = (err, req, res, next) => {
   return sendError(res, message, statusCode, errorCode);
 };
 
-module.exports = errorHandler;
+module.exports = errorMiddleware;

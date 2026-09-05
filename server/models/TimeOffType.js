@@ -8,23 +8,25 @@ const timeOffTypeSchema = new mongoose.Schema(
       unique: true,
       trim: true,
     },
-    code: {
+    unit: {
       type: String,
-      required: true,
-      unique: true,
-      uppercase: true,
-      trim: true,
+      enum: ['days', 'hours'],
+      default: 'days',
     },
     requiresAllocation: {
       type: Boolean,
       default: true,
     },
-    isPaid: {
+    approvalRequired: {
+      type: Boolean,
+      default: true,
+    },
+    affectsPayroll: {
       type: Boolean,
       default: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true, collection: 'timeOffTypes' }
 );
 
 module.exports = mongoose.model('TimeOffType', timeOffTypeSchema);

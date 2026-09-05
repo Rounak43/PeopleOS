@@ -1,5 +1,4 @@
-const Role = require('./Role');
-const UserAccount = require('./UserAccount');
+const User = require('./User');
 const Department = require('./Department');
 const JobPosition = require('./JobPosition');
 const WorkingSchedule = require('./WorkingSchedule');
@@ -9,14 +8,9 @@ const Attendance = require('./Attendance');
 const TimeOffType = require('./TimeOffType');
 const TimeOffAllocation = require('./TimeOffAllocation');
 const TimeOffRequest = require('./TimeOffRequest');
-const SalaryRule = require('./SalaryRule');
-const SalaryStructure = require('./SalaryStructure');
-const Payrun = require('./Payrun');
-const Payslip = require('./Payslip');
 
 module.exports = {
-  Role,
-  UserAccount,
+  User,
   Department,
   JobPosition,
   WorkingSchedule,
@@ -26,8 +20,4 @@ module.exports = {
   TimeOffType,
   TimeOffAllocation,
   TimeOffRequest,
-  SalaryRule,
-  SalaryStructure,
-  Payrun,
-  Payslip,
 };

@@ -1,8 +1,26 @@
+/**
+ * PeopleOS — Central API Route Registration
+ */
+
 const express = require('express');
 const { mongoose } = require('../config/db');
 
+const departmentRoutes = require('./departmentRoutes');
+const jobPositionRoutes = require('./jobPositionRoutes');
+const workingScheduleRoutes = require('./workingScheduleRoutes');
+const employeeRoutes = require('./employeeRoutes');
+const contractRoutes = require('./contractRoutes');
+const attendanceRoutes = require('./attendanceRoutes');
+const timeOffTypeRoutes = require('./timeOffTypeRoutes');
+const timeOffAllocationRoutes = require('./timeOffAllocationRoutes');
+const timeOffRequestRoutes = require('./timeOffRequestRoutes');
+
 const router = express.Router();
 
+// ─────────────────────────────────────────────
+// Health Check
+// GET /api/health
+// ─────────────────────────────────────────────
 router.get('/health', (req, res) => {
   const isConnected = mongoose.connection.readyState === 1;
 
@@ -14,20 +32,16 @@ router.get('/health', (req, res) => {
 });
 
 // ─────────────────────────────────────────────
-// Future module routes — added by Member 1
+// HR Management Routes
 // ─────────────────────────────────────────────
-// router.use('/auth',              require('./auth'));
-// router.use('/employees',         require('./employees'));
-// router.use('/departments',       require('./departments'));
-// router.use('/job-positions',     require('./jobPositions'));
-// router.use('/working-schedules', require('./workingSchedules'));
-// router.use('/contracts',         require('./contracts'));
-// router.use('/attendance',        require('./attendance'));
-// router.use('/time-off',          require('./timeOff'));
-// router.use('/salary-structures', require('./salaryStructures'));
-// router.use('/salary-rules',      require('./salaryRules'));
-// router.use('/payruns',           require('./payruns'));
-// router.use('/payslips',          require('./payslips'));
-// router.use('/dashboard',         require('./dashboard'));
+router.use('/departments', departmentRoutes);
+router.use('/job-positions', jobPositionRoutes);
+router.use('/working-schedules', workingScheduleRoutes);
+router.use('/employees', employeeRoutes);
+router.use('/contracts', contractRoutes);
+router.use('/attendance', attendanceRoutes);
+router.use('/time-off-types', timeOffTypeRoutes);
+router.use('/time-off-allocations', timeOffAllocationRoutes);
+router.use('/time-off-requests', timeOffRequestRoutes);
 
 module.exports = router;

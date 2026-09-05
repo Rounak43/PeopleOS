@@ -7,25 +7,18 @@ const departmentSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    code: {
-      type: String,
-      required: true,
-      unique: true,
-      uppercase: true,
-      trim: true,
-    },
-    manager: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Employee',
-      default: null,
-    },
-    parentDepartment: {
+    parentDepartmentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Department',
       default: null,
     },
+    managerEmployeeId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Employee',
+      default: null,
+    },
   },
-  { timestamps: true }
+  { timestamps: true, collection: 'departments' }
 );
 
 module.exports = mongoose.model('Department', departmentSchema);

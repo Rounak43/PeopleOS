@@ -1,5 +1,29 @@
 const mongoose = require('mongoose');
 
+const scheduleLineSchema = new mongoose.Schema(
+  {
+    dayOfWeek: {
+      type: String,
+      enum: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
+      required: true,
+    },
+    startTime: {
+      type: String,
+      required: true, // e.g. "09:00"
+    },
+    endTime: {
+      type: String,
+      required: true, // e.g. "17:00"
+    },
+    breakMinutes: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+  },
+  { _id: false }
+);
+
 const workingScheduleSchema = new mongoose.Schema(
   {
     name: {
@@ -7,20 +31,18 @@ const workingScheduleSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    hoursPerWeek: {
+    type: {
+      type: String,
+      enum: ['full_time', 'part_time', 'shift'],
+      default: 'full_time',
+    },
+    totalWeeklyHours: {
       type: Number,
-      default: 40,
+      default: 0,
     },
-    dailyHours: {
-      type: Number,
-      default: 8,
-    },
-    isDefault: {
-      type: Boolean,
-      default: false,
-    },
+    lines: [scheduleLineSchema],
   },
-  { timestamps: true }
+  { timestamps: true, collection: 'workingSchedules' }
 );
 
 module.exports = mongoose.model('WorkingSchedule', workingScheduleSchema);
