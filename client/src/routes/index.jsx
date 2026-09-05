@@ -67,6 +67,9 @@ const AppRoutes = () => {
               <Route path="/hr/contracts"          element={<ContractsPage />} />
               <Route path="/hr/attendance"         element={<AttendancePage />} />
               <Route path="/hr/time-off"           element={<TimeOffPage />} />
+              <Route path="/hr/time-off/requests"  element={<TimeOffPage />} />
+              <Route path="/hr/time-off/allocations" element={<TimeOffPage />} />
+              <Route path="/hr/time-off/types"       element={<TimeOffPage />} />
             </Route>
 
             {/* Catch-all inside layout */}
