@@ -28,8 +28,8 @@ const AppRoutes = () => {
 
         {/* ── Authenticated — wrapped in AppLayout ── */}
         <Route element={<AppLayout />}>
-          {/* Default redirect */}
-          <Route index element={<Navigate to="/hr/employees" replace />} />
+          {/* Default redirect to Login */}
+          <Route index element={<Navigate to="/login" replace />} />
 
           {/* HR */}
           <Route path="/hr/employees"          element={<EmployeesPage />} />
