@@ -1,0 +1,52 @@
+/* PeopleOS — AppLayout styles */
+
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+  background: var(--color-bg);
+}
+
+.app-layout-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;  /* prevent flex overflow */
+  overflow: hidden;
+}
+
+.app-layout-content {
+  flex: 1;
+  padding: var(--spacing-xl);
+  overflow-y: auto;
+}
+
+/* ── Common state containers — used by all pages ── */
+.empty-state-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-2xl) var(--spacing-xl);
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.empty-state-icon { font-size: 48px; }
+.empty-state-title { font-size: var(--font-size-lg); font-weight: 600; color: var(--color-text); }
+.empty-state-description { font-size: var(--font-size-sm); max-width: 360px; line-height: 1.6; }
+
+.error-message-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-2xl);
+  text-align: center;
+  background: var(--color-danger-bg);
+  border-radius: var(--radius-md);
+  border: 1px solid #fca5a5;
+}
+
+.error-message-icon { font-size: 32px; }
+.error-message-text { font-size: var(--font-size-sm); color: #b91c1c; }
