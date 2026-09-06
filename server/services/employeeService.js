@@ -11,6 +11,7 @@ const Attendance = require('../models/Attendance');
 const TimeOffAllocation = require('../models/TimeOffAllocation');
 const TimeOffRequest = require('../models/TimeOffRequest');
 const { buildPaginationMeta } = require('../utils/pagination');
+const { generateEmployeeCode } = require('./employeeIdService');
 
 const validateEmployeeReferences = async (data, employeeId = null) => {
   if (data.departmentId) {
@@ -63,20 +64,52 @@ const validateEmployeeReferences = async (data, employeeId = null) => {
 
 const createEmployee = async (data) => {
   const contractData = data.contract || null;
+
+  // Build clean employee payload — strip contract sub-document
   const employeePayload = { ...data };
   delete employeePayload.contract;
 
-  if (!employeePayload.employeeCode) {
-    employeePayload.employeeCode = `EMP-${Date.now().toString().slice(-6)}`;
-  }
+  // ==============================================================
+  // EMPLOYEE CODE: Always backend-generated. NEVER trust the client.
+  // Remove any frontend-submitted employeeCode entirely.
+  // ==============================================================
+  delete employeePayload.employeeCode;
 
-  const existingCode = await Employee.findOne({ employeeCode: employeePayload.employeeCode });
-  if (existingCode) {
-    const err = new Error(`Employee code '${employeePayload.employeeCode}' already exists`);
+  // Validate required references first (department must exist + have a code)
+  await validateEmployeeReferences(employeePayload);
+
+  // Resolve department to get its code for ID generation
+  const department = await Department.findById(employeePayload.departmentId);
+  if (!department) {
+    const err = new Error('Department not found');
     err.statusCode = 400;
     throw err;
   }
 
+  if (!department.code) {
+    const err = new Error(
+      `Department "${department.name}" does not have a department code assigned. ` +
+      `Please update the department with a valid 2-character code before onboarding employees.`
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Determine the year from dateJoined (or today if not provided)
+  const joinDate = employeePayload.dateJoined
+    ? new Date(employeePayload.dateJoined)
+    : new Date();
+
+  const joinYear = joinDate.getFullYear();
+
+  // ==============================================================
+  // ATOMIC ID GENERATION
+  // Format: OSYYDDNNN (e.g. OS26CY010)
+  // ==============================================================
+  const generatedCode = await generateEmployeeCode(joinYear, department.code);
+  employeePayload.employeeCode = generatedCode;
+
+  // Check email uniqueness
   const existingEmail = await Employee.findOne({ email: employeePayload.email });
   if (existingEmail) {
     const err = new Error(`Employee email '${employeePayload.email}' already exists`);
@@ -84,10 +117,29 @@ const createEmployee = async (data) => {
     throw err;
   }
 
-  await validateEmployeeReferences(employeePayload);
-
   const employee = new Employee(employeePayload);
   const savedEmployee = await employee.save();
+
+  // Auto-provision User login account for newly onboarded employee
+  try {
+    const User = require('../models/User');
+    const { hashPassword } = require('../utils/password');
+    const existingUser = await User.findOne({ email: savedEmployee.email.toLowerCase() });
+    if (!existingUser) {
+      const passwordHash = hashPassword('password123');
+      const newUser = await User.create({
+        email: savedEmployee.email.toLowerCase(),
+        passwordHash,
+        role: 'employee',
+        employeeId: savedEmployee._id,
+        isActive: true,
+      });
+      savedEmployee.userId = newUser._id;
+      await savedEmployee.save();
+    }
+  } catch (userErr) {
+    console.error('Non-critical: User account auto-provisioning warning:', userErr.message);
+  }
 
   // If initial contract data is provided, create the initial contract referencing saved employee
   if (contractData && contractData.startDate && contractData.wage !== undefined) {
@@ -135,7 +187,7 @@ const getEmployees = async ({ search, departmentId, jobPositionId, status, page 
 
   const [items, total] = await Promise.all([
     Employee.find(query)
-      .populate('departmentId', 'name')
+      .populate('departmentId', 'name code')
       .populate('jobPositionId', 'title')
       .populate('managerId', 'fullName employeeCode')
       .populate('workingScheduleId', 'name totalWeeklyHours')
@@ -155,7 +207,7 @@ const getEmployees = async ({ search, departmentId, jobPositionId, status, page 
 
 const getEmployeeById = async (id) => {
   const employee = await Employee.findById(id)
-    .populate('departmentId', 'name')
+    .populate('departmentId', 'name code')
     .populate('jobPositionId', 'title')
     .populate('managerId', 'fullName employeeCode')
     .populate('workingScheduleId', 'name totalWeeklyHours')
@@ -170,13 +222,21 @@ const getEmployeeById = async (id) => {
 };
 
 const updateEmployee = async (id, data) => {
-  if (data.employeeCode) {
-    const existing = await Employee.findOne({ employeeCode: data.employeeCode, _id: { $ne: id } });
-    if (existing) {
-      const err = new Error(`Employee code '${data.employeeCode}' already exists`);
+  // ==============================================================
+  // EMPLOYEE CODE IS IMMUTABLE — reject any attempt to change it
+  // ==============================================================
+  if (data.employeeCode !== undefined) {
+    const currentEmployee = await Employee.findById(id);
+    if (currentEmployee && data.employeeCode !== currentEmployee.employeeCode) {
+      const err = new Error(
+        `Employee code "${currentEmployee.employeeCode}" cannot be changed once assigned. ` +
+        `Employee codes are permanent identifiers in PeopleOS.`
+      );
       err.statusCode = 400;
       throw err;
     }
+    // Remove from payload regardless — never allow client to set it
+    delete data.employeeCode;
   }
 
   if (data.email) {
@@ -191,7 +251,7 @@ const updateEmployee = async (id, data) => {
   await validateEmployeeReferences(data, id);
 
   const updated = await Employee.findByIdAndUpdate(id, data, { new: true, runValidators: true })
-    .populate('departmentId', 'name')
+    .populate('departmentId', 'name code')
     .populate('jobPositionId', 'title')
     .populate('managerId', 'fullName employeeCode')
     .populate('workingScheduleId', 'name totalWeeklyHours');

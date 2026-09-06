@@ -90,6 +90,27 @@ const signin = async (req, res, next) => {
       }
     }
 
+    // Search Employee directly by email if user is missing and auto-provision user account
+    if (!user && identifier.includes('@')) {
+      employee = await Employee.findOne({
+        email: { $regex: new RegExp(`^${identifier.trim()}$`, 'i') },
+      }).populate('departmentId jobPositionId');
+
+      if (employee) {
+        const targetRole = isHRIdentifier(identifier, employee) ? 'hr_manager' : 'employee';
+        const passwordHash = hashPassword(password || 'password123');
+        user = await User.create({
+          email: employee.email.toLowerCase(),
+          passwordHash,
+          role: targetRole,
+          employeeId: employee._id,
+          isActive: true,
+        });
+        employee.userId = user._id;
+        await employee.save();
+      }
+    }
+
     // Auto-create HR / Admin user if logging in with HR/Admin credentials for the first time
     if (!user && isHRIdentifier(identifier)) {
       const passwordHash = hashPassword(password || 'admin123');

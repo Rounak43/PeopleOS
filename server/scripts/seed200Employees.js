@@ -1,3 +1,9 @@
+/**
+ * PeopleOS — 200 Employee Seed Script
+ * Uses the centralized employeeIdService.generateEmployeeCode() for proper OSYYDDNNN format.
+ * Removes all hardcoded EMP-101 to EMP-300 codes.
+ */
+
 const mongoose = require('mongoose');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
@@ -10,6 +16,7 @@ const JobPosition = require('../models/JobPosition');
 const SalaryStructure = require('../models/SalaryStructure');
 const WorkingSchedule = require('../models/WorkingSchedule');
 const { hashPassword } = require('../utils/password');
+const { generateEmployeeCode } = require('../services/employeeIdService');
 
 const FIRST_NAMES = [
   'Aarav', 'Ananya', 'Rohan', 'Priya', 'Vikram', 'Neha', 'Amit', 'Sneha', 'Karan', 'Pooja',
@@ -52,6 +59,16 @@ const seed200Employees = async () => {
       process.exit(1);
     }
 
+    // Validate all departments have codes
+    const deptsWithoutCode = departments.filter((d) => !d.code);
+    if (deptsWithoutCode.length > 0) {
+      console.error(
+        `The following departments are missing a department code. Run migrateDepartmentCodes.js or seedITCompanyData.js first:\n` +
+        deptsWithoutCode.map((d) => `  - ${d.name} (${d._id})`).join('\n')
+      );
+      process.exit(1);
+    }
+
     const jobPositions = await JobPosition.find({}).lean();
     if (jobPositions.length === 0) {
       console.error('No job positions found. Please run seedITCompanyData.js first.');
@@ -74,17 +91,28 @@ const seed200Employees = async () => {
 
     const defaultPasswordHash = hashPassword('password123');
     const createdManagers = [];
+    let seededCount = 0;
+    let skippedCount = 0;
 
-    console.log('\n--- SEEDING 200 EMPLOYEES (EMP-101 to EMP-300) ---');
+    console.log('\n--- SEEDING 200 EMPLOYEES (New PeopleOS Format: OSYYDDNNN) ---');
 
-    for (let i = 101; i <= 300; i++) {
-      const code = `EMP-${i}`;
+    for (let i = 1; i <= 200; i++) {
       const firstName = getRandomItem(FIRST_NAMES);
       const lastName = getRandomItem(LAST_NAMES);
       const fullName = `${firstName} ${lastName}`;
       const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}${i}@peopleos.com`;
       const phone = `+91 ${Math.floor(6000000000 + Math.random() * 3999999999)}`;
       const address = `Block ${Math.floor(Math.random() * 50 + 1)}, IT Tech Park, Sector ${Math.floor(Math.random() * 100 + 1)}, Tech Hub City`;
+
+      // Check if email already exists (idempotent re-runs)
+      const existingEmp = await Employee.findOne({ email: email.toLowerCase() });
+      if (existingEmp) {
+        skippedCount++;
+        if (i % 25 === 0) {
+          console.log(`  → ${i}/200: Skipped (already exists): ${email}`);
+        }
+        continue;
+      }
 
       // Select Department & Position
       const dept = getRandomItem(departments);
@@ -96,14 +124,21 @@ const seed200Employees = async () => {
         ? getRandomItem(createdManagers)
         : null;
 
+      // Random joining date within 2025-2026
+      const joiningYear = Math.random() > 0.5 ? 2025 : 2026;
+      const dateJoined = new Date(joiningYear, Math.floor(Math.random() * 12), Math.floor(Math.random() * 28 + 1));
+
+      // Generate employee code using the centralized, atomic service
+      const employeeCode = await generateEmployeeCode(dateJoined.getFullYear(), dept.code);
+
       // Create Employee
       const employeeData = {
         fullName,
-        email,
+        email: email.toLowerCase(),
         phone,
         address,
-        dateJoined: new Date(2025, Math.floor(Math.random() * 12), Math.floor(Math.random() * 28 + 1)),
-        employeeCode: code,
+        dateJoined,
+        employeeCode,
         departmentId: dept._id,
         jobPositionId: pos._id,
         managerId,
@@ -114,19 +149,22 @@ const seed200Employees = async () => {
         },
       };
 
-      const employee = await Employee.findOneAndUpdate(
-        { employeeCode: code },
-        employeeData,
-        { upsert: true, new: true }
-      );
-
-      createdManagers.push(employee._id);
+      let employee;
+      try {
+        employee = await Employee.create(employeeData);
+        createdManagers.push(employee._id);
+        seededCount++;
+      } catch (empErr) {
+        console.warn(`  ⚠ Skipped employee ${i} (${email}): ${empErr.message}`);
+        skippedCount++;
+        continue;
+      }
 
       // Determine Duration & Wage
       const durationType = getRandomItem(DURATION_TYPES);
       const wageFrequency = durationType === 'Part-time' ? 'Hourly' : getRandomItem(FREQUENCIES);
       const wage = wageFrequency === 'Hourly'
-        ? Math.floor(Math.random() * 400 + 300) // ₹300 - ₹700 / hr
+        ? Math.floor(Math.random() * 400 + 300)   // ₹300 - ₹700 / hr
         : Math.floor(Math.random() * 90000 + 35000); // ₹35,000 - ₹1,25,000 / month
 
       let endDate = null;
@@ -136,10 +174,11 @@ const seed200Employees = async () => {
         endDate = new Date(employee.dateJoined.getTime() + 180 * 24 * 60 * 60 * 1000);
       }
 
-      // Create Contract
+      // Create Contract (use employee index as a unique contract code)
+      const contractCode = `CTR-${String(i).padStart(3, '0')}`;
       const contractData = {
         employeeId: employee._id,
-        contractCode: `CTR-${i}`,
+        contractCode,
         startDate: employee.dateJoined,
         endDate,
         durationType,
@@ -150,14 +189,14 @@ const seed200Employees = async () => {
         salaryStructureId: defaultSalaryStructureId,
         workingScheduleId: defaultScheduleId,
         workLocation: getRandomItem(WORK_LOCATIONS),
-        probationPeriodMonths: durationType === 'Intern' ? 0 : (durationType === 'Fixed Term' ? 3 : 3),
+        probationPeriodMonths: durationType === 'Intern' ? 0 : 3,
         noticePeriodDays: durationType === 'Intern' ? 15 : 30,
         overtimeAllowed: true,
         status: 'active',
       };
 
       await Contract.findOneAndUpdate(
-        { contractCode: `CTR-${i}` },
+        { contractCode },
         contractData,
         { upsert: true, new: true }
       );
@@ -178,8 +217,8 @@ const seed200Employees = async () => {
         { upsert: true, new: true }
       );
 
-      if ((i - 100) % 25 === 0 || i === 300) {
-        console.log(`✓ Seeded ${i - 100} / 200 Employees (Current: ${code} - ${fullName} [${dept.name}])`);
+      if (seededCount % 25 === 0 || i === 200) {
+        console.log(`✓ Seeded ${seededCount} / 200 Employees (Current: ${employeeCode} - ${fullName} [${dept.name}])`);
       }
     }
 
@@ -188,7 +227,9 @@ const seed200Employees = async () => {
 
     console.log('\n====================================================');
     console.log(`🎉 200 EMPLOYEES SEEDED SUCCESSFULLY!`);
-    console.log(`✓ Employee Code Sequence: EMP-101 to EMP-300`);
+    console.log(`✓ Employee ID Format: OSYYDDNNN (e.g. OS26SE001)`);
+    console.log(`✓ New Employees Seeded: ${seededCount}`);
+    console.log(`✓ Skipped (already exist): ${skippedCount}`);
     console.log(`✓ Total Employees in DB: ${totalEmployees}`);
     console.log(`✓ Total Active Contracts in DB: ${totalContracts}`);
     console.log('====================================================\n');

@@ -23,10 +23,12 @@ const runOnboardingTest = async () => {
   const ts = Date.now();
 
   try {
-    // 1. Create Department
-    const dept1 = await departmentService.createDepartment({ name: `Engineering_${ts}` });
-    const dept2 = await departmentService.createDepartment({ name: `Finance_${ts}` });
-    console.log(`✓ 2. Created Departments: ${dept1.name}, ${dept2.name}`);
+    // 1. Create Department (unique codes based on timestamp to avoid collisions)
+    const code1 = `T${String(ts).slice(-1)}`;
+    const code2 = `V${String(ts).slice(-1)}`;
+    const dept1 = await departmentService.createDepartment({ name: `Engineering_${ts}`, code: code1 });
+    const dept2 = await departmentService.createDepartment({ name: `Finance_${ts}`, code: code2 });
+    console.log(`✓ 2. Created Departments: ${dept1.name} [${dept1.code}], ${dept2.name} [${dept2.code}]`);
 
     // 2. Create Job Position
     const pos1 = await jobPositionService.createJobPosition({

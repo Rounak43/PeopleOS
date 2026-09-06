@@ -12,6 +12,14 @@ const router = express.Router();
 
 router.use(authenticate);
 
+// GET /api/departments/suggest-code?name=Cybersecurity
+// Must be before /:id to avoid conflict
+router.get(
+  '/suggest-code',
+  authorize('admin', 'hr_manager'),
+  departmentController.suggestCode
+);
+
 router
   .route('/')
   .get(authorize('admin', 'hr_manager', 'hr_payroll_user', 'hr_payroll_manager', 'employee'), departmentController.getDepartments)

@@ -60,10 +60,28 @@ const deleteDepartment = async (req, res, next) => {
   }
 };
 
+/**
+ * GET /api/departments/suggest-code?name=Cybersecurity
+ * Returns a suggested unique 2-char department code for a given name.
+ */
+const suggestCode = async (req, res, next) => {
+  try {
+    const { name } = req.query;
+    if (!name || !name.trim()) {
+      return sendError(res, 'Department name is required for code suggestion', 400);
+    }
+    const result = await departmentService.suggestCode(name.trim());
+    return sendSuccess(res, result, 'Department code suggestion generated');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createDepartment,
   getDepartments,
   getDepartmentById,
   updateDepartment,
   deleteDepartment,
+  suggestCode,
 };
