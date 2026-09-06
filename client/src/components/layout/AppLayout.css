@@ -8,10 +8,10 @@
 
 .app-layout-main {
   flex: 1;
+  margin-left: 220px;
   display: flex;
   flex-direction: column;
   min-width: 0;  /* prevent flex overflow */
-  overflow: hidden;
   background: #FAF4EE;
 }
 

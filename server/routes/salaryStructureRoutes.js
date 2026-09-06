@@ -15,4 +15,10 @@ router
   .get(authorize('admin', 'hr_manager', 'hr_payroll_user', 'hr_payroll_manager'), salaryStructureController.getSalaryStructures)
   .post(authorize('admin', 'hr_manager'), salaryStructureController.createSalaryStructure);
 
+router
+  .route('/:id')
+  .get(authorize('admin', 'hr_manager', 'hr_payroll_user', 'hr_payroll_manager'), salaryStructureController.getSalaryStructureById)
+  .put(authorize('admin', 'hr_manager'), salaryStructureController.updateSalaryStructure)
+  .delete(authorize('admin', 'hr_manager'), salaryStructureController.deleteSalaryStructure);
+
 module.exports = router;

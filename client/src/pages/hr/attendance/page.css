@@ -202,10 +202,22 @@
 
 /* Filter Toolbar Ext */
 .attendance-filters {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 0.75rem;
+  display: flex;
+  flex-direction: row;
   align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 1rem;
+  width: 100%;
+}
+
+.attendance-filters .search-box {
+  flex: 1 1 220px;
+  min-width: 180px;
+}
+
+.attendance-filters .filter-group {
+  flex: 1 1 150px;
+  min-width: 140px;
 }
 
 .filter-group {

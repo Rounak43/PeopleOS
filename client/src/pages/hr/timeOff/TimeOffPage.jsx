@@ -46,12 +46,8 @@ const TimeOffPage = () => {
   const userRole = user?.role || 'admin';
   const isHR = ['admin', 'hr_manager'].includes(userRole);
 
-  // Tab state derived from location path or state
-  const activeTab = useMemo(() => {
-    if (location.pathname.includes('/types')) return 'types';
-    if (location.pathname.includes('/allocations')) return 'allocations';
-    return 'requests';
-  }, [location.pathname]);
+  // Active tab fixed to allocations as requested
+  const activeTab = 'allocations';
 
   // Shared Core State
   const [employees, setEmployees] = useState([]);
@@ -345,6 +341,34 @@ const TimeOffPage = () => {
     }
   };
 
+  // Approve Allocation (HR/Admin)
+  const handleApproveAllocation = async (allocId) => {
+    setActionLoading(true);
+    try {
+      await updateAllocation(allocId, { status: 'approved' });
+      showFeedback('Time off allocation approved!');
+      await fetchTabData();
+    } catch (err) {
+      showFeedback(err.message || 'Failed to approve allocation', 'error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Reject Allocation (HR/Admin)
+  const handleRejectAllocation = async (allocId) => {
+    setActionLoading(true);
+    try {
+      await updateAllocation(allocId, { status: 'refused' });
+      showFeedback('Time off allocation rejected.');
+      await fetchTabData();
+    } catch (err) {
+      showFeedback(err.message || 'Failed to reject allocation', 'error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // Allocation Modal Submit (HR/Admin)
   const handleAllocationSubmit = async (e) => {
     e.preventDefault();
@@ -452,67 +476,20 @@ const TimeOffPage = () => {
       {/* Header */}
       <div className="page-header">
         <div>
-          <h2 className="page-title">Time Off &amp; Leave Portal</h2>
-          <p className="page-subtitle">Manage leave balances, request approvals, and time-off policy allocations</p>
+          <h2 className="page-title">Allocations Management</h2>
+          <p className="page-subtitle">Manage employee leave balances, allocations, and time-off policy entitlements</p>
         </div>
         <div className="flex gap-sm">
           <Button variant="secondary" onClick={fetchTabData} disabled={loading}>
             🔄 Refresh
           </Button>
 
-          {activeTab === 'requests' && (
-            <Button variant="primary" onClick={() => setIsRequestModalOpen(true)}>
-              + Request Time Off
-            </Button>
-          )}
-
-          {activeTab === 'allocations' && isHR && (
+          {isHR && (
             <Button variant="primary" onClick={() => setIsAllocationModalOpen(true)}>
               + New Allocation
             </Button>
           )}
-
-          {activeTab === 'types' && isHR && (
-            <Button
-              variant="primary"
-              onClick={() => {
-                setEditingType(null);
-                setTypeForm({
-                  name: '',
-                  unit: 'days',
-                  requiresAllocation: true,
-                  approvalRequired: true,
-                  affectsPayroll: true,
-                });
-                setIsTypeModalOpen(true);
-              }}
-            >
-              + Create Time Off Type
-            </Button>
-          )}
         </div>
-      </div>
-
-      {/* Navigation Tabs */}
-      <div className="time-off-tabs">
-        <button
-          className={`tab-btn ${activeTab === 'requests' ? 'active' : ''}`}
-          onClick={() => handleTabChange('requests')}
-        >
-          <span>🏖️</span> Leave Requests &amp; Balances
-        </button>
-        <button
-          className={`tab-btn ${activeTab === 'allocations' ? 'active' : ''}`}
-          onClick={() => handleTabChange('allocations')}
-        >
-          <span>📊</span> Allocations Management
-        </button>
-        <button
-          className={`tab-btn ${activeTab === 'types' ? 'active' : ''}`}
-          onClick={() => handleTabChange('types')}
-        >
-          <span>⚙️</span> Time Off Types
-        </button>
       </div>
 
       {/* Feedback Toast */}
@@ -685,30 +662,22 @@ const TimeOffPage = () => {
                         <td>{approver}</td>
                         <td style={{ textAlign: 'right' }}>
                           <div className="actions-cell">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setViewingRequest(req)}
-                            >
-                              Details
-                            </Button>
-
-                            {req.status === 'draft' && (
-                              <Button
-                                variant="primary"
-                                size="sm"
-                                onClick={() => handleSubmitDraft(recId)}
-                              >
-                                Submit
-                              </Button>
-                            )}
-
-                            {isHR && (req.status === 'submitted' || req.status === 'draft') && (
+                            {req.status === 'approved' ? (
+                              <span className="badge badge-success" style={{ padding: '6px 12px', fontSize: '0.82rem', fontWeight: 600 }}>
+                                ✅ Approved
+                              </span>
+                            ) : req.status === 'refused' || req.status === 'rejected' ? (
+                              <span className="badge badge-danger" style={{ padding: '6px 12px', fontSize: '0.82rem', fontWeight: 600 }}>
+                                ❌ Rejected
+                              </span>
+                            ) : (
                               <>
                                 <Button
-                                  variant="secondary"
+                                  variant="primary"
                                   size="sm"
+                                  style={{ backgroundColor: '#16a34a', borderColor: '#16a34a', color: '#ffffff' }}
                                   onClick={() => handleApproveRequest(recId)}
+                                  disabled={actionLoading}
                                 >
                                   Approve
                                 </Button>
@@ -716,20 +685,11 @@ const TimeOffPage = () => {
                                   variant="danger"
                                   size="sm"
                                   onClick={() => handleOpenRefusal(req)}
+                                  disabled={actionLoading}
                                 >
-                                  Refuse
+                                  Reject
                                 </Button>
                               </>
-                            )}
-
-                            {req.status !== 'approved' && (
-                              <Button
-                                variant="danger"
-                                size="sm"
-                                onClick={() => setDeletingItem({ type: 'request', id: recId })}
-                              >
-                                Delete
-                              </Button>
                             )}
                           </div>
                         </td>
@@ -870,13 +830,25 @@ const TimeOffPage = () => {
                         </td>
                         {isHR && (
                           <td style={{ textAlign: 'right' }}>
-                            <Button
-                              variant="danger"
-                              size="sm"
-                              onClick={() => setDeletingItem({ type: 'allocation', id: recId })}
-                            >
-                              Delete
-                            </Button>
+                            <div className="actions-cell" style={{ justifyContent: 'flex-end', display: 'flex', gap: '6px' }}>
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                style={{ backgroundColor: '#16a34a', borderColor: '#16a34a', color: '#ffffff' }}
+                                onClick={() => handleApproveAllocation(recId)}
+                                disabled={actionLoading || alloc.status === 'approved'}
+                              >
+                                {alloc.status === 'approved' ? '✓ Approved' : 'Approve'}
+                              </Button>
+                              <Button
+                                variant="danger"
+                                size="sm"
+                                onClick={() => handleRejectAllocation(recId)}
+                                disabled={actionLoading || alloc.status === 'refused' || alloc.status === 'rejected'}
+                              >
+                                {alloc.status === 'refused' || alloc.status === 'rejected' ? '✕ Rejected' : 'Reject'}
+                              </Button>
+                            </div>
                           </td>
                         )}
                       </tr>

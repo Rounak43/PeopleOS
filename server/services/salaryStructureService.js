@@ -43,7 +43,17 @@ const seedDefaultStructuresIfEmpty = async () => {
 
 const getSalaryStructures = async () => {
   await seedDefaultStructuresIfEmpty();
-  return await SalaryStructure.find().sort({ name: 1 });
+  return await SalaryStructure.find().populate('rules').sort({ name: 1 });
+};
+
+const getSalaryStructureById = async (id) => {
+  const structure = await SalaryStructure.findById(id).populate('rules');
+  if (!structure) {
+    const err = new Error('Salary Structure not found');
+    err.statusCode = 404;
+    throw err;
+  }
+  return structure;
 };
 
 const createSalaryStructure = async (data) => {
@@ -62,7 +72,41 @@ const createSalaryStructure = async (data) => {
   return await structure.save();
 };
 
+const updateSalaryStructure = async (id, data) => {
+  const structure = await SalaryStructure.findById(id);
+  if (!structure) {
+    const err = new Error('Salary Structure not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (data.code && data.code.toUpperCase() !== structure.code) {
+    const existing = await SalaryStructure.findOne({ code: data.code.toUpperCase(), _id: { $ne: id } });
+    if (existing) {
+      const err = new Error(`Salary Structure with code '${data.code}' already exists`);
+      err.statusCode = 400;
+      throw err;
+    }
+  }
+
+  Object.assign(structure, data);
+  return await structure.save();
+};
+
+const deleteSalaryStructure = async (id) => {
+  const structure = await SalaryStructure.findByIdAndDelete(id);
+  if (!structure) {
+    const err = new Error('Salary Structure not found');
+    err.statusCode = 404;
+    throw err;
+  }
+  return { id };
+};
+
 module.exports = {
   getSalaryStructures,
+  getSalaryStructureById,
   createSalaryStructure,
+  updateSalaryStructure,
+  deleteSalaryStructure,
 };

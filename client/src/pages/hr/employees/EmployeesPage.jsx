@@ -26,6 +26,7 @@ import {
   deleteEmployee,
 } from '../../../services/hr/employeeService';
 import { getDepartments } from '../../../services/hr/departmentService';
+import { exportEmployeesToExcel } from '../../../utils/excelExport';
 import './page.css';
 
 const EmployeesPage = () => {
@@ -207,6 +208,14 @@ const EmployeesPage = () => {
         <div className="flex gap-sm">
           <Button variant="secondary" onClick={fetchEmployeeData} disabled={loading}>
             🔄 Refresh
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => exportEmployeesToExcel(filteredEmployees.length > 0 ? filteredEmployees : employees)}
+            disabled={loading || employees.length === 0}
+            title="Download employee directory as an organized Excel file"
+          >
+            📊 Export Excel
           </Button>
           <Button variant="primary" onClick={() => setIsOnboardingModalOpen(true)}>
             + Add Employee

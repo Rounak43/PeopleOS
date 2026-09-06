@@ -94,8 +94,8 @@ const createContract = async (data) => {
     }
   }
 
-  if (!data.contractCode) {
-    data.contractCode = `CTR-${Date.now().toString().slice(-6)}`;
+  if (!data.contractCode || data.contractCode.trim() === '') {
+    data.contractCode = employee.employeeCode ? `CNT-${employee.employeeCode}` : `CNT-${Date.now().toString().slice(-6)}`;
   }
 
   data.status = status;
@@ -201,6 +201,11 @@ const updateContract = async (id, data) => {
       err.statusCode = 400;
       throw err;
     }
+  }
+
+  if (!data.contractCode || data.contractCode.trim() === '') {
+    const emp = await Employee.findById(targetEmployeeId);
+    data.contractCode = emp?.employeeCode ? `CNT-${emp.employeeCode}` : `CNT-${Date.now().toString().slice(-6)}`;
   }
 
   return await Contract.findByIdAndUpdate(id, data, { new: true, runValidators: true })

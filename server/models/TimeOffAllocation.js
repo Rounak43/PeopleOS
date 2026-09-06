@@ -37,7 +37,7 @@ const timeOffAllocationSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'approved', 'expired'],
+      enum: ['pending', 'approved', 'expired', 'refused', 'rejected'],
       default: 'approved',
     },
   },

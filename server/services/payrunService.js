@@ -1,148 +1,486 @@
 /**
- * PeopleOS — Payrun & Payslip Service
- * Real 2-Step Payrun Creation, Payslip Computation Engine, Validation Warnings, and PDF/Email Delivery
+ * PeopleOS — Payrun & Payslip Orchestration Service
+ *
+ * This is the top-level orchestrator for the payroll lifecycle.
+ * It delegates to domain services for specific computations:
+ *
+ *   contractResolver   → which contract applies for the period
+ *   salaryRuleEngine   → computes salary breakdown from MongoDB rules
+ *   attendanceAggregator → real attendance hours and days
+ *   timeOffAggregator  → approved leave impact on pay
+ *   payrollValidationService → blocking/non-blocking validation
+ *
+ * Payrun Lifecycle:
+ *   Draft → Computed → Validated → Paid
+ *   (Any state → Cancelled)
+ *
+ * CRITICAL: GET endpoints return STORED data. They do NOT recalculate.
+ * Recalculation only happens via POST /compute.
  */
+
 const Payrun = require('../models/Payrun');
 const Payslip = require('../models/Payslip');
 const Employee = require('../models/Employee');
 const Contract = require('../models/Contract');
+const Department = require('../models/Department');
+const JobPosition = require('../models/JobPosition');
+const WorkingSchedule = require('../models/WorkingSchedule');
 const SalaryStructure = require('../models/SalaryStructure');
+const SalaryRule = require('../models/SalaryRule');
 const { buildPaginationMeta } = require('../utils/pagination');
 
+const { resolveContract } = require('./payroll/contractResolver');
+const { executeSalaryRules, resolveSalaryStructureId } = require('./payroll/salaryRuleEngine');
+const { aggregateAttendance } = require('./payroll/attendanceAggregator');
+const { aggregateTimeOff } = require('./payroll/timeOffAggregator');
+const { validatePayrun: runValidation } = require('./payroll/payrollValidationService');
+
+// ─────────────────────────────────────────────────────────────
+// Valid state transitions
+// ─────────────────────────────────────────────────────────────
+const ALLOWED_TRANSITIONS = {
+  Draft: ['Computed', 'Cancelled'],
+  Computed: ['Validated', 'Draft', 'Cancelled'],
+  Validated: ['Paid', 'Computed', 'Cancelled'],
+  Paid: [],         // Terminal state — no transitions
+  Cancelled: [],    // Terminal state — no transitions
+};
+
+const assertStateTransition = (current, next) => {
+  const allowed = ALLOWED_TRANSITIONS[current] || [];
+  if (!allowed.includes(next)) {
+    const err = new Error(
+      `Invalid state transition: "${current}" → "${next}". Allowed next states: [${allowed.join(', ') || 'none'}]`
+    );
+    err.statusCode = 409;
+    err.code = 'INVALID_STATE_TRANSITION';
+    throw err;
+  }
+};
+
+// ─────────────────────────────────────────────────────────────
+// Step 1: Create Draft Payrun
+// ─────────────────────────────────────────────────────────────
+
 /**
- * Step 1 & 2 Payrun Creation Engine:
- * Creates a payrun batch and generates computed payslips for selected employees
+ * Create a new payrun in Draft state.
+ * Does NOT compute payslips — use computePayrun() for that.
+ *
+ * @param {Object} params
+ * @param {string} params.name
+ * @param {string|Date} params.periodStart
+ * @param {string|Date} params.periodEnd
+ * @param {Array<string>} [params.employeeIds] - specific employees, or all active
+ * @param {string|null} [params.salaryStructureId] - default structure for this payrun
+ * @param {string|null} [params.notes]
+ * @param {string|null} [params.createdBy] - user ID
+ *
+ * @returns {{ payrun: PayrunDoc, eligibleCount: number }}
  */
-const createPayrunBatch = async ({ name, periodStart, periodEnd, employeeIds = [] }) => {
+const createPayrun = async ({ name, periodStart, periodEnd, employeeIds = [], salaryStructureId = null, notes = '', createdBy = null }) => {
   if (!name || !periodStart || !periodEnd) {
     const err = new Error('Payrun Name, Period Start, and Period End are required');
     err.statusCode = 400;
     throw err;
   }
 
-  // 1. Find target employees with active contracts
+  const start = new Date(periodStart);
+  const end = new Date(periodEnd);
+
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    const err = new Error('Invalid date format for periodStart or periodEnd');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (start > end) {
+    const err = new Error('periodStart must be before or equal to periodEnd');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Find target employees
   let targetEmployees = [];
   if (Array.isArray(employeeIds) && employeeIds.length > 0) {
-    targetEmployees = await Employee.find({ _id: { $in: employeeIds } }).lean();
+    targetEmployees = await Employee.find({ _id: { $in: employeeIds }, status: 'active' }).lean();
   } else {
-    targetEmployees = await Employee.find({ status: 'active' }).limit(50).lean();
+    targetEmployees = await Employee.find({ status: 'active' }).lean();
   }
 
   if (targetEmployees.length === 0) {
-    const err = new Error('No eligible employees selected for this Payrun batch');
+    const err = new Error('No active employees found for this payrun');
     err.statusCode = 400;
     throw err;
   }
 
-  // 2. Fetch contracts for selected employees
-  const targetEmpIds = targetEmployees.map((e) => e._id);
-  const contracts = await Contract.find({
-    employeeId: { $in: targetEmpIds },
-    status: 'active',
-  }).lean();
+  // Create payrun in Draft state with employee references (contracts resolved during compute)
+  const payrunEmpRefs = targetEmployees.map((emp) => ({
+    employee: emp._id,
+    contract: null,
+  }));
 
-  const contractMap = {};
-  contracts.forEach((c) => {
-    contractMap[c.employeeId.toString()] = c;
-  });
-
-  // Prepare payrun employee references
-  const payrunEmpRefs = [];
-  const validEmployeePairs = [];
-
-  for (const emp of targetEmployees) {
-    const contract = contractMap[emp._id.toString()];
-    if (contract) {
-      payrunEmpRefs.push({
-        employee: emp._id,
-        contract: contract._id,
-      });
-      validEmployeePairs.push({ employee: emp, contract });
-    }
-  }
-
-  if (validEmployeePairs.length === 0) {
-    const err = new Error('Selected employees do not have active contracts assigned for this period');
-    err.statusCode = 400;
-    throw err;
-  }
-
-  // 3. Create Payrun Batch record
   const payrun = new Payrun({
     name,
-    periodStart: new Date(periodStart),
-    periodEnd: new Date(periodEnd),
-    state: 'Processing',
+    periodStart: start,
+    periodEnd: end,
+    salaryStructureId: salaryStructureId || null,
+    state: 'Draft',
     employees: payrunEmpRefs,
+    notes: notes || '',
+    createdBy: createdBy || null,
   });
+
   await payrun.save();
-
-  // 4. Compute Payslips for each employee in batch
-  const generatedPayslips = [];
-
-  for (const { employee, contract } of validEmployeePairs) {
-    const monthlyWage = contract.wageFrequency === 'Hourly' ? (contract.wage || 400) * 160 : (contract.wage || 50000);
-    
-    // Earnings
-    const basic = Math.round(monthlyWage * 0.5); // 50% Basic
-    const hra = Math.round(monthlyWage * 0.25); // 25% HRA
-    const conveyance = Math.round(monthlyWage * 0.15); // 15% Conveyance
-    const specialAllowance = Math.round(monthlyWage * 0.10); // 10% Special Allowance
-    const grossPay = basic + hra + conveyance + specialAllowance;
-
-    // Deductions
-    const pfDeduction = Math.round(basic * 0.12); // 12% PF on Basic
-    const esiDeduction = monthlyWage <= 21000 ? Math.round(grossPay * 0.0075) : 0;
-    const taxTds = grossPay > 75000 ? Math.round(grossPay * 0.10) : (grossPay > 50000 ? Math.round(grossPay * 0.05) : 0);
-    const totalDeductions = pfDeduction + esiDeduction + taxTds;
-    const netPay = Math.max(0, grossPay - totalDeductions);
-
-    // Validation warnings check
-    const warnings = [];
-    if (!employee.bankDetails || !employee.bankDetails.accountNo) {
-      warnings.push({ message: 'Missing employee bank account details', severity: 'Warning' });
-    }
-    if (!contract.workingScheduleId) {
-      warnings.push({ message: 'No working schedule linked to active contract', severity: 'Warning' });
-    }
-
-    const payslip = new Payslip({
-      payrun: payrun._id,
-      employee: employee._id,
-      contract: contract._id,
-      grossPay,
-      netPay,
-      state: 'Verified',
-      lines: [
-        { code: 'BASIC', name: 'Basic Salary', category: 'Earnings', amount: basic },
-        { code: 'HRA', name: 'House Rent Allowance', category: 'Earnings', amount: hra },
-        { code: 'CONV', name: 'Conveyance Allowance', category: 'Earnings', amount: conveyance },
-        { code: 'SA', name: 'Special Allowance', category: 'Earnings', amount: specialAllowance },
-        { code: 'PF', name: 'Provident Fund (PF)', category: 'Deductions', amount: -pfDeduction },
-        { code: 'ESI', name: 'Employee State Insurance', category: 'Deductions', amount: -esiDeduction },
-        { code: 'TDS', name: 'Tax Deducted at Source', category: 'Deductions', amount: -taxTds },
-      ],
-      warnings,
-    });
-
-    await payslip.save();
-    generatedPayslips.push(payslip);
-  }
 
   return {
     payrun,
-    payslipsCount: generatedPayslips.length,
-    payslips: generatedPayslips,
+    eligibleCount: targetEmployees.length,
   };
 };
 
+// ─────────────────────────────────────────────────────────────
+// Step 2: Compute Payrun
+// ─────────────────────────────────────────────────────────────
+
 /**
- * Get Payrun batches list with pagination
+ * Compute payslips for all employees in a payrun.
+ * This is the ONLY place where salary calculation happens.
+ * Idempotent: re-computing a payrun deletes existing Computed payslips and recomputes.
+ *
+ * @param {string} payrunId
+ * @param {string|null} computedBy - user ID
+ * @returns {{ payrun: PayrunDoc, payslips: Array, computationSummary: Object }}
+ */
+const computePayrun = async (payrunId, computedBy = null) => {
+  const payrun = await Payrun.findById(payrunId);
+  if (!payrun) {
+    const err = new Error('Payrun not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // Allow recompute from Draft or Computed states only
+  if (!['Draft', 'Computed'].includes(payrun.state)) {
+    const err = new Error(`Cannot compute payrun in state "${payrun.state}". Only Draft or Computed payruns can be recomputed.`);
+    err.statusCode = 409;
+    throw err;
+  }
+
+  // Delete any previously computed payslips (idempotent recompute)
+  await Payslip.deleteMany({ payrun: payrunId, state: { $in: ['Draft', 'Computed'] } });
+
+  const employees = await Employee.find({
+    _id: { $in: payrun.employees.map((ref) => ref.employee) },
+    status: 'active',
+  })
+    .populate('workingScheduleId')
+    .lean();
+
+  const computedPayslips = [];
+  const skipped = [];
+
+  // Resolve payrun-level salary structure
+  const payrunStructureId = payrun.salaryStructureId
+    ? payrun.salaryStructureId.toString()
+    : null;
+
+  for (const employee of employees) {
+    const allWarnings = [];
+    let contract = null;
+    let salaryStructureId = null;
+    let computationResult = null;
+
+    // ── Step A: Resolve Contract ────────────────────────────
+    try {
+      const resolved = await resolveContract(employee._id, payrun.periodStart, payrun.periodEnd);
+      contract = resolved.contract;
+      allWarnings.push(...resolved.warnings);
+
+      // Update payrun employee ref with resolved contract
+      const empRef = payrun.employees.find(
+        (ref) => ref.employee.toString() === employee._id.toString()
+      );
+      if (empRef) empRef.contract = contract._id;
+    } catch (contractErr) {
+      if (contractErr.code === 'MISSING_CONTRACT') {
+        skipped.push({
+          employeeId: employee._id,
+          employeeName: employee.fullName,
+          reason: contractErr.message,
+        });
+
+        // Create a Draft payslip with the error (so HR can see it)
+        const errPayslip = new Payslip({
+          payrun: payrun._id,
+          employee: employee._id,
+          contract: null,
+          employeeNameSnapshot: employee.fullName,
+          employeeCodeSnapshot: employee.employeeCode,
+          wageSnapshot: 0,
+          periodStart: payrun.periodStart,
+          periodEnd: payrun.periodEnd,
+          workedDays: 0,
+          regularHours: 0,
+          overtimeHours: 0,
+          grossPay: 0,
+          totalDeductions: 0,
+          netPay: 0,
+          state: 'Draft',
+          lines: [],
+          warnings: [{
+            type: 'MISSING_CONTRACT',
+            message: contractErr.message,
+            severity: 'Error',
+            isBlocking: true,
+          }],
+        });
+        await errPayslip.save();
+        computedPayslips.push(errPayslip);
+        continue;
+      }
+      throw contractErr;
+    }
+
+    // ── Check Duplicate Payment (Employee Already Paid for Period) ──
+    const existingPaidPayslip = await Payslip.findOne({
+      employee: employee._id,
+      state: 'Paid',
+      payrun: { $ne: payrun._id },
+      periodStart: { $lte: payrun.periodEnd },
+      periodEnd: { $gte: payrun.periodStart },
+    });
+
+    if (existingPaidPayslip) {
+      allWarnings.push({
+        type: 'ALREADY_PAID',
+        message: `Employee ${employee.fullName} was already paid for period ${existingPaidPayslip.periodStart ? new Date(existingPaidPayslip.periodStart).toISOString().slice(0, 10) : ''} to ${existingPaidPayslip.periodEnd ? new Date(existingPaidPayslip.periodEnd).toISOString().slice(0, 10) : ''}. Skipped duplicate payment.`,
+        severity: 'Error',
+        isBlocking: true,
+      });
+    }
+
+    // ── Step B: Resolve Salary Structure ────────────────────
+    const rawContractStructId = contract.salaryStructureId
+      ? (typeof contract.salaryStructureId === 'object' && contract.salaryStructureId._id ? contract.salaryStructureId._id : contract.salaryStructureId)
+      : null;
+
+    salaryStructureId = await resolveSalaryStructureId({
+      contractStructureId: rawContractStructId,
+      payrunStructureId,
+    });
+
+    const cleanSalaryStructureId = (typeof salaryStructureId === 'object' && salaryStructureId?._id)
+      ? salaryStructureId._id
+      : (salaryStructureId && salaryStructureId.toString() !== '[object Object]' ? salaryStructureId : null);
+
+    if (!cleanSalaryStructureId) {
+      allWarnings.push({
+        type: 'MISSING_SALARY_STRUCTURE',
+        message: 'No salary structure found for this employee or payrun. Cannot compute salary.',
+        severity: 'Error',
+        isBlocking: true,
+      });
+    }
+
+    // ── Step C: Aggregate Attendance ────────────────────────
+    const attendanceData = await aggregateAttendance({
+      employeeId: employee._id,
+      periodStart: payrun.periodStart,
+      periodEnd: payrun.periodEnd,
+      workingSchedule: employee.workingScheduleId || contract.workingScheduleId || null,
+    });
+    allWarnings.push(...attendanceData.warnings);
+
+    // ── Step D: Aggregate Time Off ──────────────────────────
+    const timeOffData = await aggregateTimeOff({
+      employeeId: employee._id,
+      periodStart: payrun.periodStart,
+      periodEnd: payrun.periodEnd,
+    });
+    allWarnings.push(...timeOffData.warnings);
+
+    // ── Step E: Execute Salary Rules ────────────────────────
+    if (cleanSalaryStructureId) {
+      try {
+        computationResult = await executeSalaryRules({
+          salaryStructureId: cleanSalaryStructureId,
+          wage: contract.wage,
+          wageFrequency: contract.wageFrequency || 'Monthly',
+          workedDays: attendanceData.workedDays,
+          regularHours: attendanceData.regularHours,
+          overtimeHours: attendanceData.overtimeHours,
+          unpaidLeaveDays: timeOffData.unpaidLeaveDays,
+          workingDaysInPeriod: attendanceData.workingDaysInPeriod,
+        });
+        allWarnings.push(...computationResult.warnings);
+      } catch (engineErr) {
+        allWarnings.push({
+          type: 'SALARY_RULE_ERROR',
+          message: `Salary rule engine error: ${engineErr.message}`,
+          severity: 'Error',
+          isBlocking: true,
+        });
+      }
+    }
+
+    // ── Step F: Warn on Missing Bank Details ─────────────────
+    if (!employee.bankDetails || !employee.bankDetails.accountNo) {
+      allWarnings.push({
+        type: 'MISSING_BANK_DETAILS',
+        message: 'Employee has no bank account details. Payment processing may fail.',
+        severity: 'Warning',
+        isBlocking: false,
+      });
+    }
+
+    // ── Step G: Save Payslip ────────────────────────────────
+    const hasBlockingErrors = allWarnings.some((w) => w.isBlocking);
+
+    const payslipData = {
+      payrun: payrun._id,
+      employee: employee._id,
+      contract: contract._id,
+      salaryStructureId: cleanSalaryStructureId || null,
+      employeeNameSnapshot: employee.fullName,
+      employeeCodeSnapshot: employee.employeeCode,
+      wageSnapshot: contract.wage,
+      salaryStructureNameSnapshot: computationResult?.structureName || '',
+      periodStart: payrun.periodStart,
+      periodEnd: payrun.periodEnd,
+      workedDays: attendanceData.workedDays,
+      regularHours: attendanceData.regularHours,
+      overtimeHours: attendanceData.overtimeHours,
+      grossPay: computationResult?.grossSalary || 0,
+      totalDeductions: computationResult?.totalDeductions || 0,
+      netPay: computationResult?.netSalary || 0,
+      state: hasBlockingErrors ? 'Draft' : 'Computed',
+      lines: computationResult?.lines || [],
+      warnings: allWarnings,
+    };
+
+    const payslip = new Payslip(payslipData);
+    await payslip.save();
+    computedPayslips.push(payslip);
+  }
+
+  // ── Update Payrun Summary and State ──────────────────────────
+  const successfulPayslips = computedPayslips.filter((ps) => ps.state === 'Computed');
+
+  const summary = {
+    totalGross: successfulPayslips.reduce((s, ps) => s + ps.grossPay, 0),
+    totalDeductions: successfulPayslips.reduce((s, ps) => s + ps.totalDeductions, 0),
+    totalNet: successfulPayslips.reduce((s, ps) => s + ps.netPay, 0),
+    employeeCount: computedPayslips.length,
+  };
+
+  payrun.state = 'Computed';
+  payrun.summary = summary;
+  payrun.computedBy = computedBy || null;
+  payrun.computedAt = new Date();
+  await payrun.save();
+
+  return {
+    payrun,
+    payslips: computedPayslips,
+    computationSummary: {
+      total: computedPayslips.length,
+      computed: successfulPayslips.length,
+      skipped: skipped.length,
+      skippedDetails: skipped,
+      ...summary,
+    },
+  };
+};
+
+// ─────────────────────────────────────────────────────────────
+// Step 3: Validate Payrun
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Validate a Computed payrun — checks all payslips for blocking errors.
+ * Transitions payrun state to Validated if valid.
+ *
+ * @param {string} payrunId
+ * @param {string|null} validatedBy - user ID
+ * @returns {{ payrun: PayrunDoc, validation: Object }}
+ */
+const validatePayrunBatch = async (payrunId, validatedBy = null) => {
+  const payrun = await Payrun.findById(payrunId);
+  if (!payrun) {
+    const err = new Error('Payrun not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  assertStateTransition(payrun.state, 'Validated');
+
+  const validation = await runValidation(payrunId);
+
+  if (validation.valid) {
+    // Mark all Computed payslips as Validated
+    await Payslip.updateMany(
+      { payrun: payrunId, state: 'Computed' },
+      { state: 'Validated' }
+    );
+
+    payrun.state = 'Validated';
+    payrun.validatedBy = validatedBy || null;
+    payrun.validatedAt = new Date();
+    await payrun.save();
+  }
+
+  return { payrun, validation };
+};
+
+// ─────────────────────────────────────────────────────────────
+// Step 4: Mark Payrun as Paid
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Mark a Validated payrun as Paid.
+ *
+ * @param {string} payrunId
+ * @param {string|null} paidBy - user ID
+ * @returns {{ payrun: PayrunDoc }}
+ */
+const markPayrunPaid = async (payrunId, paidBy = null) => {
+  const payrun = await Payrun.findById(payrunId);
+  if (!payrun) {
+    const err = new Error('Payrun not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  assertStateTransition(payrun.state, 'Paid');
+
+  const paymentDate = new Date();
+
+  await Payslip.updateMany(
+    { payrun: payrunId, state: 'Validated' },
+    { state: 'Paid', paymentDate }
+  );
+
+  payrun.state = 'Paid';
+  payrun.paymentDate = paymentDate;
+  payrun.paidBy = paidBy || null;
+  payrun.paidAt = paymentDate;
+  await payrun.save();
+
+  return { payrun };
+};
+
+// ─────────────────────────────────────────────────────────────
+// Read Operations (GET — never recalculates)
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Get all payruns with pagination.
  */
 const getPayruns = async ({ page = 1, limit = 20, skip = 0 }) => {
   const [items, total] = await Promise.all([
     Payrun.find({})
-      .populate('employees.employee', 'fullName employeeCode email')
+      .populate('salaryStructureId', 'name code')
+      .populate('createdBy', 'email')
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 }),
@@ -156,62 +494,178 @@ const getPayruns = async ({ page = 1, limit = 20, skip = 0 }) => {
 };
 
 /**
- * Get Payrun Details by ID with generated Payslips
+ * Get a single payrun with its payslips.
+ * Does NOT trigger any recalculation.
  */
 const getPayrunById = async (id) => {
   const payrun = await Payrun.findById(id)
-    .populate('employees.employee', 'fullName employeeCode email bankDetails')
-    .populate('employees.contract', 'contractCode wage wageFrequency durationType');
+    .populate('salaryStructureId', 'name code')
+    .populate('createdBy', 'email')
+    .populate('computedBy', 'email')
+    .populate('validatedBy', 'email')
+    .populate('paidBy', 'email')
+    .populate('employees.employee', 'fullName employeeCode email')
+    .populate('employees.contract', 'contractCode wage wageFrequency');
 
   if (!payrun) {
-    const err = new Error('Payrun batch not found');
+    const err = new Error('Payrun not found');
     err.statusCode = 404;
     throw err;
   }
 
   const payslips = await Payslip.find({ payrun: id })
-    .populate('employee', 'fullName employeeCode email bankDetails departmentId jobPositionId')
-    .populate('contract', 'contractCode wage durationType workLocation');
+    .populate({
+      path: 'employee',
+      select: 'fullName employeeCode email bankDetails departmentId jobPositionId',
+      populate: [
+        { path: 'departmentId', select: 'name' },
+        { path: 'jobPositionId', select: 'title name' },
+      ],
+    })
+    .populate('contract', 'contractCode wage wageFrequency durationType workLocation')
+    .populate('salaryStructureId', 'name code')
+    .sort({ employeeNameSnapshot: 1 });
 
-  return {
-    payrun,
-    payslips,
-  };
+  return { payrun, payslips };
 };
 
 /**
- * Update Payrun State (e.g. Mark Paid / Done)
+ * Get a single payslip by ID (read-only).
+ * Does NOT trigger any recalculation.
  */
-const updatePayrunState = async (id, state) => {
-  const payrun = await Payrun.findByIdAndUpdate(id, { state, paymentDate: new Date() }, { new: true });
-  if (!payrun) {
-    const err = new Error('Payrun batch not found');
+const getPayslipById = async (id) => {
+  const payslip = await Payslip.findById(id)
+    .populate('payrun', 'name periodStart periodEnd state')
+    .populate('salaryStructureId', 'name code')
+    .populate('contract', 'contractCode wage wageFrequency durationType workLocation')
+    .populate({
+      path: 'employee',
+      select: 'fullName employeeCode email bankDetails departmentId jobPositionId',
+      populate: [
+        { path: 'departmentId', select: 'name' },
+        { path: 'jobPositionId', select: 'title name' },
+      ],
+    });
+
+  if (!payslip) {
+    const err = new Error('Payslip not found');
     err.statusCode = 404;
     throw err;
   }
 
-  // Update associated payslips
-  await Payslip.updateMany({ payrun: id }, { state: state === 'Done' ? 'Paid' : 'Verified' });
+  return payslip;
+};
+
+/**
+ * Get all payslips across all payruns (HR view).
+ */
+const getAllPayslips = async ({ search = '', state = '', page = 1, limit = 100, skip = 0 } = {}) => {
+  const query = {};
+  if (state && state !== 'ALL') {
+    query.state = state;
+  }
+  if (search) {
+    const regex = new RegExp(search.trim(), 'i');
+    query.$or = [
+      { employeeNameSnapshot: regex },
+      { employeeCodeSnapshot: regex },
+    ];
+  }
+
+  const [items, total] = await Promise.all([
+    Payslip.find(query)
+      .populate('payrun', 'name periodStart periodEnd state')
+      .populate('salaryStructureId', 'name code')
+      .populate('employee', 'fullName employeeCode email departmentId jobPositionId')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+    Payslip.countDocuments(query),
+  ]);
+
+  return {
+    items,
+    pagination: buildPaginationMeta(page, limit, total),
+  };
+};
+
+/**
+ * Get payslips for a specific employee (for employee portal).
+ */
+const getPayslipsByEmployee = async (employeeId, { page = 1, limit = 12, skip = 0 } = {}) => {
+  const [items, total] = await Promise.all([
+    Payslip.find({ employee: employeeId, state: { $in: ['Computed', 'Validated', 'Paid'] } })
+      .populate('payrun', 'name periodStart periodEnd state')
+      .populate('salaryStructureId', 'name')
+      .sort({ periodStart: -1 })
+      .skip(skip)
+      .limit(limit),
+    Payslip.countDocuments({
+      employee: employeeId,
+      state: { $in: ['Computed', 'Validated', 'Paid'] },
+    }),
+  ]);
+
+  return {
+    items,
+    pagination: buildPaginationMeta(page, limit, total),
+  };
+};
+
+// ─────────────────────────────────────────────────────────────
+// Mutations
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Cancel a payrun (only Draft or Computed can be cancelled).
+ */
+const cancelPayrun = async (payrunId) => {
+  const payrun = await Payrun.findById(payrunId);
+  if (!payrun) {
+    const err = new Error('Payrun not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  assertStateTransition(payrun.state, 'Cancelled');
+
+  // Revert payslips to Draft on cancellation
+  await Payslip.updateMany(
+    { payrun: payrunId, state: { $in: ['Draft', 'Computed'] } },
+    { state: 'Draft' }
+  );
+
+  payrun.state = 'Cancelled';
+  await payrun.save();
 
   return payrun;
 };
 
 /**
- * Delete Payrun batch
+ * Delete a payrun (only Draft or Cancelled).
  */
 const deletePayrun = async (id) => {
-  await Payslip.deleteMany({ payrun: id });
-  const deleted = await Payrun.findByIdAndDelete(id);
-  if (!deleted) {
-    const err = new Error('Payrun batch not found');
+  const payrun = await Payrun.findById(id);
+  if (!payrun) {
+    const err = new Error('Payrun not found');
     err.statusCode = 404;
     throw err;
   }
+
+  if (!['Draft', 'Cancelled'].includes(payrun.state)) {
+    const err = new Error(`Cannot delete a payrun in state "${payrun.state}". Only Draft or Cancelled payruns can be deleted.`);
+    err.statusCode = 409;
+    throw err;
+  }
+
+  await Payslip.deleteMany({ payrun: id });
+  await Payrun.findByIdAndDelete(id);
   return true;
 };
 
 /**
- * Update state for selected payslip IDs (Mark Paid / Received for specific employees)
+ * Mark individual payslip(s) as Paid (for selective payment).
+ * @deprecated Use markPayrunPaid for batch operations
  */
 const updatePayslipsStatus = async (payslipIds = [], state = 'Paid') => {
   if (!Array.isArray(payslipIds) || payslipIds.length === 0) {
@@ -220,22 +674,59 @@ const updatePayslipsStatus = async (payslipIds = [], state = 'Paid') => {
     throw err;
   }
 
+  const validStates = ['Computed', 'Validated', 'Paid'];
+  if (!validStates.includes(state)) {
+    const err = new Error(`Invalid state "${state}". Allowed: ${validStates.join(', ')}`);
+    err.statusCode = 400;
+    throw err;
+  }
+
   const updated = await Payslip.updateMany(
     { _id: { $in: payslipIds } },
-    { state, paymentDate: new Date() }
+    { state, paymentDate: state === 'Paid' ? new Date() : undefined }
   );
 
-  return {
-    modifiedCount: updated.modifiedCount,
-    state,
-  };
+  return { modifiedCount: updated.modifiedCount, state };
+};
+
+// Legacy compatibility: kept for frontend transition
+const updatePayrunState = async (id, state) => {
+  const validLegacyStates = { Processing: 'Computed', Done: 'Paid', Verified: 'Validated' };
+  const normalizedState = validLegacyStates[state] || state;
+
+  if (normalizedState === 'Paid') return markPayrunPaid(id);
+  if (normalizedState === 'Validated') return validatePayrunBatch(id);
+
+  const payrun = await Payrun.findByIdAndUpdate(id, { state: normalizedState }, { new: true });
+  if (!payrun) {
+    const err = new Error('Payrun not found');
+    err.statusCode = 404;
+    throw err;
+  }
+  await Payslip.updateMany({ payrun: id }, { state: normalizedState === 'Paid' ? 'Paid' : 'Computed' });
+  return payrun;
 };
 
 module.exports = {
-  createPayrunBatch,
+  // Lifecycle
+  createPayrun,
+  computePayrun,
+  validatePayrunBatch,
+  markPayrunPaid,
+  cancelPayrun,
+
+  // Read
   getPayruns,
   getPayrunById,
-  updatePayrunState,
+  getPayslipById,
+  getAllPayslips,
+  getPayslipsByEmployee,
+
+  // Mutations
   deletePayrun,
   updatePayslipsStatus,
+
+  // Legacy compat
+  createPayrunBatch: createPayrun,   // alias
+  updatePayrunState,
 };

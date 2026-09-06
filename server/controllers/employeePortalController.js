@@ -9,6 +9,7 @@ const TimeOffType = require('../models/TimeOffType');
 const Contract = require('../models/Contract');
 const Payslip = require('../models/Payslip');
 const Payrun = require('../models/Payrun');
+const Notification = require('../models/Notification');
 const { sendSuccess, sendError } = require('../utils/apiResponse');
 
 /**
@@ -560,6 +561,18 @@ const submitLeaveRequest = async (req, res, next) => {
     });
 
     const populated = await TimeOffRequest.findById(newRequest._id).populate('timeOffTypeId', 'name unit');
+
+    try {
+      await Notification.create({
+        recipientRole: 'all_hr',
+        type: 'time_off_request',
+        title: 'New Leave Request Applied',
+        message: `${employee.fullName || 'An employee'} applied for ${populated?.timeOffTypeId?.name || 'leave'} (${diffDays} day(s)).`,
+        timeOffRequestId: newRequest._id,
+      });
+    } catch (notifErr) {
+      console.warn('Could not generate HR notification:', notifErr);
+    }
 
     return sendSuccess(res, populated, 'Leave request submitted successfully', 201);
   } catch (error) {

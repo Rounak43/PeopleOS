@@ -202,6 +202,7 @@ const AttendancePage = () => {
       checkIn: record.checkIn ? new Date(record.checkIn).toISOString().slice(0, 16) : '',
       checkOut: record.checkOut ? new Date(record.checkOut).toISOString().slice(0, 16) : '',
       status: record.status || 'present',
+      adjustmentHours: '1',
       notes: record.notes || '',
     });
   };
@@ -214,13 +215,34 @@ const AttendancePage = () => {
     setActionLoading(true);
     try {
       const recId = correctionRecord._id || correctionRecord.id;
+      let calculatedHours = 8;
+      const adj = parseFloat(correctionForm.adjustmentHours) || 0;
+      let notesText = correctionForm.notes;
+
+      if (correctionForm.status === 'absent') {
+        calculatedHours = 0;
+        notesText = notesText || 'Status: Absent (0 hrs)';
+      } else if (correctionForm.status === 'late') {
+        calculatedHours = Math.max(0, 8 - adj);
+        notesText = notesText || `Late by ${adj} hrs (Total: ${calculatedHours} hrs)`;
+      } else if (correctionForm.status === 'overtime') {
+        calculatedHours = 8 + adj;
+        notesText = notesText || `Overtime: +${adj} hrs (Total: ${calculatedHours} hrs)`;
+      } else if (correctionForm.status === 'present') {
+        calculatedHours = 8;
+        notesText = notesText || 'Standard 8.0h Shift';
+      } else if (correctionRecord.workedHours) {
+        calculatedHours = correctionRecord.workedHours;
+      }
+
       await correctAttendance(recId, {
         checkIn: correctionForm.checkIn ? new Date(correctionForm.checkIn).toISOString() : undefined,
         checkOut: correctionForm.checkOut ? new Date(correctionForm.checkOut).toISOString() : undefined,
         status: correctionForm.status,
-        notes: correctionForm.notes,
+        workedHours: calculatedHours,
+        notes: notesText,
       });
-      showFeedback('Attendance record corrected successfully!');
+      showFeedback(`Attendance corrected! Worked hours updated to ${calculatedHours} hrs.`);
       setCorrectionRecord(null);
       await fetchAttendanceData();
     } catch (err) {
@@ -349,104 +371,6 @@ const AttendancePage = () => {
           <button className="btn-link" onClick={() => setFeedback(null)}>✕</button>
         </div>
       )}
-
-      {/* Summary Cards */}
-      <div className="attendance-summary-grid">
-        <div className="summary-card">
-          <div className="summary-icon in">⏱️</div>
-          <div className="summary-content">
-            <span className="summary-label">Today's Check-In</span>
-            <span className="summary-value">
-              {todayRecord?.checkIn ? formatDateTime(todayRecord.checkIn) : 'Not Checked In'}
-            </span>
-            <span className="summary-subtext">First session of the day</span>
-          </div>
-        </div>
-
-        <div className="summary-card">
-          <div className="summary-icon out">🚪</div>
-          <div className="summary-content">
-            <span className="summary-label">Today's Check-Out</span>
-            <span className="summary-value">
-              {todayRecord?.checkOut ? formatDateTime(todayRecord.checkOut) : activeOpenRecord ? 'Session Active' : '—'}
-            </span>
-            <span className="summary-subtext">Session closing time</span>
-          </div>
-        </div>
-
-        <div className="summary-card">
-          <div className="summary-icon hours">⏳</div>
-          <div className="summary-content">
-            <span className="summary-label">Worked Hours</span>
-            <span className="summary-value">
-              {todayRecord ? `${todayRecord.workedHours || 0} hrs` : '0 hrs'}
-            </span>
-            <span className="summary-subtext">Calculated backend total</span>
-          </div>
-        </div>
-
-        <div className="summary-card">
-          <div className="summary-icon status">📌</div>
-          <div className="summary-content">
-            <span className="summary-label">Current Status</span>
-            <span className="summary-value" style={{ textTransform: 'capitalize' }}>
-              {activeOpenRecord ? 'Checked In' : todayRecord?.checkOut ? 'Completed' : 'Offline'}
-            </span>
-            <span className="summary-subtext">Real-time status</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Real-time Action Banner Area */}
-      <div className="attendance-action-card card">
-        <div className="action-card-info">
-          <span className="action-card-title">
-            <span>⏱️ Attendance Punch Terminal</span>
-            {activeOpenRecord && <span className="badge badge-warning">Active Session Open</span>}
-          </span>
-          <span className="action-card-desc">
-            {activeOpenRecord
-              ? `Currently checked in since ${formatDateTime(activeOpenRecord.checkIn)}. Click Check Out to log worked hours.`
-              : 'Click Check In to record your daily shift start time.'}
-          </span>
-        </div>
-
-        <div className="action-buttons-group">
-          {isHR && employeeOptions.length > 0 && (
-            <div className="employee-selector-box" title="Select target employee for punch action">
-              <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Target:</span>
-              <select
-                value={selectedEmployeeId}
-                onChange={(e) => setSelectedEmployeeId(e.target.value)}
-              >
-                {employeeOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {!activeOpenRecord ? (
-            <button
-              className="btn-check-in"
-              onClick={handleCheckIn}
-              disabled={actionLoading}
-            >
-              {actionLoading ? 'PUNCHING IN...' : '▶ CHECK IN NOW'}
-            </button>
-          ) : (
-            <button
-              className="btn-check-out"
-              onClick={handleCheckOut}
-              disabled={actionLoading}
-            >
-              {actionLoading ? 'PUNCHING OUT...' : '⏹ CHECK OUT NOW'}
-            </button>
-          )}
-        </div>
-      </div>
 
       {/* Toolbar / Filters */}
       <div className="filters-toolbar card">
@@ -707,13 +631,44 @@ const AttendancePage = () => {
                   setCorrectionForm({ ...correctionForm, status: e.target.value })
                 }
                 options={[
-                  { value: 'present', label: 'Present' },
-                  { value: 'late', label: 'Late' },
-                  { value: 'absent', label: 'Absent' },
-                  { value: 'overtime', label: 'Overtime' },
+                  { value: 'present', label: 'Present (Standard 8.0 hrs)' },
+                  { value: 'late', label: 'Late (Subtract from 8.0 hrs)' },
+                  { value: 'overtime', label: 'Overtime (Add to 8.0 hrs)' },
+                  { value: 'absent', label: 'Absent (0.0 hrs)' },
                   { value: 'missing_checkout', label: 'Missing Checkout' },
                 ]}
               />
+              {correctionForm.status === 'late' && (
+                <Input
+                  id="corr-late-hrs"
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  max="8"
+                  label="How many hours late?"
+                  placeholder="e.g. 1.5 (will deduct from 8.0 hrs)"
+                  value={correctionForm.adjustmentHours}
+                  onChange={(e) =>
+                    setCorrectionForm({ ...correctionForm, adjustmentHours: e.target.value })
+                  }
+                  required
+                />
+              )}
+              {correctionForm.status === 'overtime' && (
+                <Input
+                  id="corr-ot-hrs"
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  label="How many overtime hours?"
+                  placeholder="e.g. 2.0 (will add to 8.0 hrs)"
+                  value={correctionForm.adjustmentHours}
+                  onChange={(e) =>
+                    setCorrectionForm({ ...correctionForm, adjustmentHours: e.target.value })
+                  }
+                  required
+                />
+              )}
               <Input
                 id="corr-notes"
                 label="Correction Reason / Notes"

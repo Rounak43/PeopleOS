@@ -32,7 +32,7 @@ const timeOffRequestSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['draft', 'submitted', 'approved', 'refused'],
+      enum: ['draft', 'submitted', 'approved', 'refused', 'rejected'],
       default: 'draft',
     },
     approverId: {

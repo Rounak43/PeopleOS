@@ -7,6 +7,7 @@ const TimeOffType = require('../models/TimeOffType');
 const TimeOffAllocation = require('../models/TimeOffAllocation');
 const TimeOffRequest = require('../models/TimeOffRequest');
 const Employee = require('../models/Employee');
+const Notification = require('../models/Notification');
 const { buildPaginationMeta } = require('../utils/pagination');
 
 // ─────────────────────────────────────────────
@@ -264,10 +265,24 @@ const createRequest = async (data) => {
   const request = new TimeOffRequest({
     ...data,
     duration,
-    status: 'draft',
+    status: data.status || 'submitted',
   });
 
-  return await request.save();
+  const savedRequest = await request.save();
+
+  try {
+    await Notification.create({
+      recipientRole: 'all_hr',
+      type: 'time_off_request',
+      title: 'New Leave Request Applied',
+      message: `${employee.fullName || 'Employee'} applied for ${type.name || 'time off'} (${duration} day(s)).`,
+      timeOffRequestId: savedRequest._id,
+    });
+  } catch (notifErr) {
+    console.warn('Could not create HR notification:', notifErr);
+  }
+
+  return savedRequest;
 };
 
 const getRequests = async ({ employeeId, status, timeOffTypeId, page = 1, limit = 20, skip = 0 }) => {
@@ -318,14 +333,24 @@ const submitRequest = async (id) => {
     throw err;
   }
 
-  if (request.status !== 'draft') {
-    const err = new Error(`Cannot submit time off request in '${request.status}' status`);
-    err.statusCode = 400;
-    throw err;
+  request.status = 'submitted';
+  const savedRequest = await request.save();
+
+  try {
+    const emp = await Employee.findById(request.employeeId);
+    const typeObj = await TimeOffType.findById(request.timeOffTypeId);
+    await Notification.create({
+      recipientRole: 'all_hr',
+      type: 'time_off_request',
+      title: 'New Leave Request Applied',
+      message: `${emp ? emp.fullName : 'Employee'} applied for ${typeObj ? typeObj.name : 'time off'} (${request.duration} day(s)).`,
+      timeOffRequestId: savedRequest._id,
+    });
+  } catch (notifErr) {
+    console.warn('Could not create HR notification:', notifErr);
   }
 
-  request.status = 'submitted';
-  return await request.save();
+  return savedRequest;
 };
 
 const approveRequest = async (id, approverId) => {
@@ -342,43 +367,50 @@ const approveRequest = async (id, approverId) => {
     throw err;
   }
 
-  if (request.status !== 'submitted' && request.status !== 'draft') {
-    const err = new Error(`Cannot approve time off request in '${request.status}' status`);
-    err.statusCode = 400;
-    throw err;
-  }
-
   const type = request.timeOffTypeId;
 
   if (type && type.requiresAllocation) {
     if (!request.allocationId) {
-      const err = new Error('Time off request requires an allocation');
-      err.statusCode = 400;
-      throw err;
+      // Attempt auto-linking to employee's active allocation for this type
+      const activeAlloc = await TimeOffAllocation.findOne({
+        employeeId: request.employeeId,
+        timeOffTypeId: type._id,
+      });
+
+      if (activeAlloc) {
+        request.allocationId = activeAlloc._id;
+      }
     }
 
-    const allocation = await TimeOffAllocation.findById(request.allocationId);
-    if (!allocation) {
-      const err = new Error('Referenced allocation not found');
-      err.statusCode = 400;
-      throw err;
+    if (request.allocationId) {
+      const allocation = await TimeOffAllocation.findById(request.allocationId);
+      if (allocation) {
+        allocation.takenAmount += request.duration;
+        allocation.remainingAmount = Math.max(0, allocation.allocatedAmount - allocation.takenAmount);
+        await allocation.save();
+      }
     }
-
-    if (allocation.remainingAmount < request.duration) {
-      const err = new Error(`Insufficient allocation balance. Remaining: ${allocation.remainingAmount}, Requested: ${request.duration}`);
-      err.statusCode = 400;
-      throw err;
-    }
-
-    // Deduct allocation
-    allocation.takenAmount += request.duration;
-    allocation.remainingAmount = allocation.allocatedAmount - allocation.takenAmount;
-    await allocation.save();
   }
 
   request.status = 'approved';
   request.approverId = approverId || null;
-  return await request.save();
+  const updatedRequest = await request.save();
+
+  try {
+    const typeName = type ? type.name : 'Time Off';
+    await Notification.create({
+      recipientRole: 'employee',
+      recipientEmployeeId: request.employeeId,
+      type: 'time_off_approved',
+      title: 'Leave Request Approved',
+      message: `Your request for ${typeName} (${request.duration} day(s)) was APPROVED by HR.`,
+      timeOffRequestId: request._id,
+    });
+  } catch (notifErr) {
+    console.warn('Could not create employee notification:', notifErr);
+  }
+
+  return updatedRequest;
 };
 
 const refuseRequest = async (id, approverId, reason = '') => {
@@ -389,17 +421,28 @@ const refuseRequest = async (id, approverId, reason = '') => {
     throw err;
   }
 
-  if (request.status === 'approved') {
-    const err = new Error('Cannot refuse an already approved time off request');
-    err.statusCode = 400;
-    throw err;
-  }
-
   request.status = 'refused';
   request.approverId = approverId || null;
   if (reason) request.reason = reason;
 
-  return await request.save();
+  const updatedRequest = await request.save();
+
+  try {
+    const typeObj = await TimeOffType.findById(request.timeOffTypeId);
+    const typeName = typeObj ? typeObj.name : 'Time Off';
+    await Notification.create({
+      recipientRole: 'employee',
+      recipientEmployeeId: request.employeeId,
+      type: 'time_off_rejected',
+      title: 'Leave Request Rejected / Denied',
+      message: `Your request for ${typeName} was REJECTED / DENIED by HR.${reason ? ' Reason: ' + reason : ''}`,
+      timeOffRequestId: request._id,
+    });
+  } catch (notifErr) {
+    console.warn('Could not create employee notification:', notifErr);
+  }
+
+  return updatedRequest;
 };
 
 const updateRequest = async (id, data) => {

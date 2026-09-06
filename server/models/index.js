@@ -8,6 +8,7 @@ const Attendance = require('./Attendance');
 const TimeOffType = require('./TimeOffType');
 const TimeOffAllocation = require('./TimeOffAllocation');
 const TimeOffRequest = require('./TimeOffRequest');
+const Notification = require('./Notification');
 
 module.exports = {
   User,
@@ -20,4 +21,5 @@ module.exports = {
   TimeOffType,
   TimeOffAllocation,
   TimeOffRequest,
+  Notification,
 };

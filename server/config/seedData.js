@@ -1,6 +1,9 @@
 /**
  * PeopleOS — Initial Sample Data Seeder
- * Populates realistic sample data, users, and payslips if the database is empty.
+ * Populates realistic sample data, salary structures, and employees.
+ *
+ * NOTE: Payslips are NOT seeded here. They are created via the
+ * payroll compute engine (POST /api/payruns/:id/compute).
  */
 
 const Department = require('../models/Department');
@@ -14,7 +17,155 @@ const Attendance = require('../models/Attendance');
 const User = require('../models/User');
 const Payslip = require('../models/Payslip');
 const Payrun = require('../models/Payrun');
+const SalaryRule = require('../models/SalaryRule');
+const SalaryStructure = require('../models/SalaryStructure');
 const { hashPassword } = require('../utils/password');
+
+/**
+ * Seeds a standard Indian payroll SalaryStructure with real SalaryRules.
+ * Rules are: BASIC (50%), HRA (25%), CONV (15%), SA (10%),
+ * PF (12% of BASIC, deduction), ESI (0.75% of GROSS, conditional on WAGE<=21000),
+ * TDS (10% GROSS if >75000, 5% if >50000, else 0).
+ *
+ * @returns {SalaryStructure} - the created or existing salary structure
+ */
+const seedSalaryStructure = async () => {
+  // Skip if already seeded
+  const existing = await SalaryStructure.findOne({ code: 'STANDARD_MONTHLY' });
+  if (existing) {
+    console.log('[Seed] ✓ Salary structure already seeded, skipping.');
+    return existing;
+  }
+
+  console.log('[Seed] Seeding SalaryRules and SalaryStructure...');
+
+  // Earnings
+  const ruleBasic = await SalaryRule.create({
+    code: 'BASIC',
+    name: 'Basic Salary',
+    category: 'Basic',
+    sequence: 10,
+    amountType: 'Percentage',
+    amountValue: 50,
+    percentageBase: 'WAGE',
+    isDeduction: false,
+    active: true,
+  });
+
+  const ruleHRA = await SalaryRule.create({
+    code: 'HRA',
+    name: 'House Rent Allowance',
+    category: 'Allowance',
+    sequence: 20,
+    amountType: 'Percentage',
+    amountValue: 25,
+    percentageBase: 'WAGE',
+    isDeduction: false,
+    active: true,
+  });
+
+  const ruleCONV = await SalaryRule.create({
+    code: 'CONV',
+    name: 'Conveyance Allowance',
+    category: 'Allowance',
+    sequence: 30,
+    amountType: 'Percentage',
+    amountValue: 15,
+    percentageBase: 'WAGE',
+    isDeduction: false,
+    active: true,
+  });
+
+  const ruleSA = await SalaryRule.create({
+    code: 'SA',
+    name: 'Special Allowance',
+    category: 'Allowance',
+    sequence: 40,
+    amountType: 'Percentage',
+    amountValue: 10,
+    percentageBase: 'WAGE',
+    isDeduction: false,
+    active: true,
+  });
+
+  // Gross (computed from earnings, sequence after all earnings)
+  const ruleGROSS = await SalaryRule.create({
+    code: 'GROSS',
+    name: 'Gross Salary',
+    category: 'Gross',
+    sequence: 50,
+    amountType: 'Formula',
+    formula: 'BASIC + HRA + CONV + SA',
+    isDeduction: false,
+    active: true,
+  });
+
+  // Deductions
+  const rulePF = await SalaryRule.create({
+    code: 'PF',
+    name: 'Provident Fund (PF)',
+    category: 'Deduction',
+    sequence: 60,
+    amountType: 'Percentage',
+    amountValue: 12,
+    percentageBase: 'BASIC',
+    isDeduction: true,
+    active: true,
+  });
+
+  const ruleESI = await SalaryRule.create({
+    code: 'ESI',
+    name: 'Employee State Insurance (ESI)',
+    category: 'Deduction',
+    sequence: 70,
+    amountType: 'Percentage',
+    amountValue: 0.75,
+    percentageBase: 'GROSS',
+    condition: 'WAGE <= 21000',
+    isDeduction: true,
+    active: true,
+  });
+
+  // TDS: split into slab-based conditional rules to avoid ternary operators
+  // TDS_HIGH: 10% of GROSS when GROSS > 75000
+  const ruleTDS_HIGH = await SalaryRule.create({
+    code: 'TDS_HIGH',
+    name: 'TDS - High Income Slab (10%)',
+    category: 'Deduction',
+    sequence: 80,
+    amountType: 'Percentage',
+    amountValue: 10,
+    percentageBase: 'GROSS',
+    condition: 'GROSS > 75000',
+    isDeduction: true,
+    active: true,
+  });
+
+  // TDS_MED: 5% of GROSS when 50000 < GROSS <= 75000
+  const ruleTDS_MED = await SalaryRule.create({
+    code: 'TDS_MED',
+    name: 'TDS - Mid Income Slab (5%)',
+    category: 'Deduction',
+    sequence: 81,
+    amountType: 'Percentage',
+    amountValue: 5,
+    percentageBase: 'GROSS',
+    condition: 'GROSS > 50000 && GROSS <= 75000',
+    isDeduction: true,
+    active: true,
+  });
+
+  // Group into a Standard Monthly structure
+  const structure = await SalaryStructure.create({
+    name: 'Standard Monthly Payroll',
+    code: 'STANDARD_MONTHLY',
+    description: 'Standard Indian payroll: Basic 50%, HRA 25%, Conveyance 15%, SA 10%, PF 12% of Basic, ESI (if applicable), TDS (slab-based).',
+    rules: [ruleBasic._id, ruleHRA._id, ruleCONV._id, ruleSA._id, ruleGROSS._id, rulePF._id, ruleESI._id, ruleTDS_HIGH._id, ruleTDS_MED._id],
+  });
+
+  console.log('[Seed] ✓ SalaryStructure "Standard Monthly Payroll" seeded with 9 rules.');
+  return structure;
+};
 
 const seedInitialData = async () => {
   const existingCount = await Employee.countDocuments();
@@ -69,7 +220,7 @@ const seedInitialData = async () => {
 
     // 5. Employees
     const empLead = await Employee.create({
-      employeeCode: 'EMP-001',
+      employeeCode: 'OS26EN001',
       fullName: 'Alexandra Chen',
       email: 'alexandra.chen@peopleos.local',
       phone: '+1 415 555 0101',
@@ -85,7 +236,7 @@ const seedInitialData = async () => {
     });
 
     const empDev = await Employee.create({
-      employeeCode: 'EMP-002',
+      employeeCode: 'OS26EN002',
       fullName: 'Marcus Johnson',
       email: 'marcus.j@peopleos.local',
       phone: '+1 415 555 0102',
@@ -102,7 +253,7 @@ const seedInitialData = async () => {
     });
 
     const empHr = await Employee.create({
-      employeeCode: 'EMP-003',
+      employeeCode: 'OS26HU001',
       fullName: 'Elena Rostova',
       email: 'elena.r@peopleos.local',
       phone: '+1 415 555 0103',
@@ -118,7 +269,7 @@ const seedInitialData = async () => {
     });
 
     const empDesigner = await Employee.create({
-      employeeCode: 'EMP-004',
+      employeeCode: 'OS26PR001',
       fullName: 'Sophia Martinez',
       email: 'sophia.m@peopleos.local',
       phone: '+1 415 555 0104',
@@ -135,7 +286,8 @@ const seedInitialData = async () => {
 
     employees = [empLead, empDev, empHr, empDesigner];
 
-    // 6. Contracts
+    // 6. Contracts (with salary structure attached)
+    const salaryStructure = await seedSalaryStructure();
     const wages = [125000, 95000, 88000, 92000];
     for (let i = 0; i < employees.length; i++) {
       const emp = employees[i];
@@ -144,6 +296,7 @@ const seedInitialData = async () => {
         departmentId: emp.departmentId,
         jobPositionId: emp.jobPositionId,
         workingScheduleId: schedule._id,
+        salaryStructureId: salaryStructure._id,
         startDate: new Date('2026-01-01'),
         endDate: new Date('2026-12-31'),
         wage: wages[i],
@@ -217,8 +370,8 @@ const seedInitialData = async () => {
     console.log('[Seed] ✓ Successfully seeded User accounts (passwords: admin123 / password123)!');
   }
 
-  // 7b. Seed EMP-001 (Alexandra Chen) if missing
-  let emp001 = await Employee.findOne({ employeeCode: 'EMP-001' });
+  // 7b. Seed Alexandra Chen if missing
+  let emp001 = await Employee.findOne({ $or: [{ email: 'alexandra.chen@peopleos.local' }, { employeeCode: 'OS26EN001' }] });
   if (!emp001) {
     let engDept = await Department.findOne({ name: 'Engineering' });
     if (!engDept) engDept = await Department.create({ name: 'Engineering' });
@@ -235,7 +388,7 @@ const seedInitialData = async () => {
     }
 
     emp001 = await Employee.create({
-      employeeCode: 'EMP-001',
+      employeeCode: 'OS26EN001',
       fullName: 'Alexandra Chen',
       email: 'alexandra.chen@peopleos.local',
       phone: '+1 415 555 0101',
@@ -258,7 +411,7 @@ const seedInitialData = async () => {
     }
     emp001.userId = u001._id;
     await emp001.save();
-    console.log('[Seed] ✓ Seeded EMP-001 Alexandra Chen!');
+    console.log('[Seed] ✓ Seeded OS26EN001 Alexandra Chen!');
   }
 
   let contract001 = await Contract.findOne({ employeeId: emp001._id });
@@ -266,16 +419,22 @@ const seedInitialData = async () => {
     let engDept = await Department.findOne({ name: 'Engineering' });
     let posLead = await JobPosition.findOne({ title: 'Engineering Lead' });
     let schedule = await WorkingSchedule.findOne({});
+    const salaryStructure = await seedSalaryStructure();
     contract001 = await Contract.create({
       employeeId: emp001._id,
       departmentId: engDept?._id,
       jobPositionId: posLead?._id,
       workingScheduleId: schedule?._id,
+      salaryStructureId: salaryStructure._id,
       startDate: new Date('2026-01-01'),
       endDate: new Date('2026-12-31'),
       wage: 125000,
       status: 'active',
     });
+  } else if (!contract001.salaryStructureId) {
+    // Backfill salary structure if contract exists but has no structure
+    const salaryStructure = await seedSalaryStructure();
+    await Contract.findByIdAndUpdate(contract001._id, { salaryStructureId: salaryStructure._id });
   }
 
   let vacType = await TimeOffType.findOne({ name: 'Paid Vacation' });
@@ -292,34 +451,13 @@ const seedInitialData = async () => {
     });
   }
 
-  let ps001 = await Payslip.findOne({ employee: emp001._id });
-  if (!ps001) {
-    let payrun = await Payrun.findOne({});
-    if (!payrun) {
-      payrun = await Payrun.create({
-        name: 'January 2026 Standard Payrun',
-        periodStart: new Date('2026-01-01'),
-        periodEnd: new Date('2026-01-31'),
-        state: 'Done',
-      });
-    }
-    await Payslip.create({
-      payrun: payrun._id,
-      employee: emp001._id,
-      contract: contract001._id,
-      grossPay: 10416.67,
-      netPay: 8125.00,
-      state: 'Paid',
-      lines: [
-        { code: 'BASIC', name: 'Basic Monthly Salary', category: 'Earnings', amount: 10416.67 },
-        { code: 'TAX', name: 'Federal & State Income Tax', category: 'Deductions', amount: -1875.00 },
-        { code: 'HEALTH', name: 'Health & Dental Insurance', category: 'Deductions', amount: -416.67 },
-      ],
-    });
-  }
+  // NOTE: Payslips are NOT seeded. They are created via:
+  //   POST /api/payruns  (create draft)
+  //   POST /api/payruns/:id/compute  (run engine)
+  // This ensures real computation from SalaryRules is used.
 
   // 7c. Seed Samarth Suryavamshi (exact match to user request & screenshot)
-  let samarth = await Employee.findOne({ employeeCode: 'EMP-01JOHN20260001' });
+  let samarth = await Employee.findOne({ $or: [{ email: 'samarth.s@peopleos.local' }, { employeeCode: 'OS26EN003' }] });
   if (!samarth) {
     const engDept = await Department.findOne({ name: 'Engineering' });
     let posEngineer = await JobPosition.findOne({ title: 'Software Engineer' });
@@ -331,7 +469,7 @@ const seedInitialData = async () => {
     const sickType = await TimeOffType.findOne({ name: 'Sick Leave' });
 
     samarth = await Employee.create({
-      employeeCode: 'EMP-01JOHN20260001',
+      employeeCode: 'OS26EN003',
       fullName: 'samarth suryavamshi',
       email: 'samarth.s@peopleos.local',
       phone: '+1 415 555 7890',
@@ -352,11 +490,13 @@ const seedInitialData = async () => {
     samarth.userId = user._id;
     await samarth.save();
 
+    const salaryStructure = await seedSalaryStructure();
     await Contract.create({
       employeeId: samarth._id,
       departmentId: engDept?._id,
       jobPositionId: posEngineer?._id,
       workingScheduleId: schedule?._id,
+      salaryStructureId: salaryStructure._id,
       startDate: new Date('2026-01-01'),
       endDate: new Date('2026-12-31'),
       wage: 105000,
@@ -398,65 +538,8 @@ const seedInitialData = async () => {
     console.log('[Seed] ✓ Seeded Samarth Suryavamshi (EMP-01JOHN20260001 / password123)!');
   }
 
-  // 8. Seed sample Payslips and Payruns if not present
-  const payslipCount = await Payslip.countDocuments();
-  if (payslipCount === 0 && employees.length > 0) {
-    console.log('[Seed] Seeding sample Payslips...');
-
-    const payrunJan = await Payrun.create({
-      name: 'January 2026 Standard Payrun',
-      periodStart: new Date('2026-01-01'),
-      periodEnd: new Date('2026-01-31'),
-      state: 'Done',
-    });
-
-    const payrunFeb = await Payrun.create({
-      name: 'February 2026 Standard Payrun',
-      periodStart: new Date('2026-02-01'),
-      periodEnd: new Date('2026-02-28'),
-      state: 'Processing',
-    });
-
-    for (const emp of employees) {
-      const contract = await Contract.findOne({ employeeId: emp._id });
-      const monthlyGross = contract ? Math.round((contract.wage / 12) * 100) / 100 : 7500;
-      const taxDeduction = Math.round(monthlyGross * 0.18 * 100) / 100;
-      const benefitDeduction = Math.round(monthlyGross * 0.04 * 100) / 100;
-      const netPay = Math.round((monthlyGross - taxDeduction - benefitDeduction) * 100) / 100;
-
-      // Jan Payslip (Paid)
-      await Payslip.create({
-        payrun: payrunJan._id,
-        employee: emp._id,
-        contract: contract ? contract._id : null,
-        grossPay: monthlyGross,
-        netPay,
-        state: 'Paid',
-        lines: [
-          { code: 'BASIC', name: 'Basic Monthly Salary', category: 'Earnings', amount: monthlyGross },
-          { code: 'TAX', name: 'Federal & State Income Tax', category: 'Deductions', amount: -taxDeduction },
-          { code: 'HEALTH', name: 'Health & Dental Insurance', category: 'Deductions', amount: -benefitDeduction },
-        ],
-      });
-
-      // Feb Payslip (Verified)
-      await Payslip.create({
-        payrun: payrunFeb._id,
-        employee: emp._id,
-        contract: contract ? contract._id : null,
-        grossPay: monthlyGross,
-        netPay,
-        state: 'Verified',
-        lines: [
-          { code: 'BASIC', name: 'Basic Monthly Salary', category: 'Earnings', amount: monthlyGross },
-          { code: 'TAX', name: 'Federal & State Income Tax', category: 'Deductions', amount: -taxDeduction },
-          { code: 'HEALTH', name: 'Health & Dental Insurance', category: 'Deductions', amount: -benefitDeduction },
-        ],
-      });
-    }
-
-    console.log('[Seed] ✓ Successfully seeded sample Payslip data!');
-  }
+  // Seed SalaryStructure as a standalone step (safe to call multiple times)
+  await seedSalaryStructure();
 };
 
 module.exports = { seedInitialData };

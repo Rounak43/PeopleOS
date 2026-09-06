@@ -33,7 +33,6 @@ const Header = () => {
     day: 'numeric',
   });
 
-  const location = useLocation();
   const isHRRoute = location.pathname.startsWith('/hr');
   const portalTitle = isHRRoute ? 'HR Portal' : 'Employee Portal';
 
