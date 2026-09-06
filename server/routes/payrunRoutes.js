@@ -35,6 +35,7 @@ router.get('/employee/payslips/:id', ctrl.getMyPayslipById);
 router.get('/all-payslips', ctrl.getAllPayslips);
 router.get('/payslips/:id', ctrl.getPayslipById);
 router.put('/payslips/status', ctrl.updatePayslipsStatus);   // LEGACY
+router.delete('/clean-duplicates', ctrl.cleanDuplicateAndZeroPayslips);
 
 // ─── Payrun list & create ───────────────────────────────────────────────────
 router.get('/', ctrl.getPayruns);

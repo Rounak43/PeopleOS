@@ -22,7 +22,7 @@ const Attendance = require('../models/Attendance');
 const Payrun = require('../models/Payrun');
 const Payslip = require('../models/Payslip');
 
-const { computePayrun } = require('../services/payrunService');
+const { computePayrun, cleanDuplicateAndZeroPayslips } = require('../services/payrunService');
 
 const runHistoricalSeeder = async () => {
   try {
@@ -219,8 +219,12 @@ const runHistoricalSeeder = async () => {
       console.log(`✓ Payrun "${m.name}" computed and marked as Paid.`);
     }
 
+    // Run duplicate & 0-rupee cleanup
+    await cleanDuplicateAndZeroPayslips();
+
     const totalPayslips = await Payslip.countDocuments();
     const totalAttendance = await Attendance.countDocuments();
+
 
     console.log('\n====================================================');
     console.log('🎉 HISTORICAL SEEDING COMPLETED SUCCESSFULLY!');

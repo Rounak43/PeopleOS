@@ -141,7 +141,7 @@ const EmployeeDashboardPage = () => {
     return <ErrorMessage message={error} onRetry={fetchDashboardData} />;
   }
 
-  const { employee, todayAttendance, monthlyStats, leaveBalances } = data || {};
+  const { employee, todayAttendance, monthlyStats, monthlyAttendanceGraph, totalYtdHours, leaveBalances } = data || {};
   const hasCheckedIn = !!todayAttendance?.checkIn;
   const isCheckedOut = !!todayAttendance?.checkOut;
   const isCurrentlyWorking = hasCheckedIn && !isCheckedOut;
@@ -361,12 +361,12 @@ const EmployeeDashboardPage = () => {
 
       {/* ── Lower Two-Column Section ── */}
       <div className="aegis-bottom-grid">
-        {/* Left Column: Weekly Attendance & Hours */}
+        {/* Left Column: Monthly Attendance & Hours */}
         <div className="aegis-chart-card">
           <div className="aegis-chart-top">
             <div>
-              <h3 className="aegis-section-title">Weekly Attendance &amp; Hours</h3>
-              <p className="aegis-section-sub">Mon - Fri Working Hours Breakdown</p>
+              <h3 className="aegis-section-title">Monthly Attendance &amp; Hours</h3>
+              <p className="aegis-section-sub">Monthly Working Hours Breakdown (Up to Date)</p>
             </div>
 
             <div className="aegis-chart-legend">
@@ -382,65 +382,61 @@ const EmployeeDashboardPage = () => {
                 <span className="legend-dot absent" />
                 <span>Absent</span>
               </div>
-              <span className="aegis-total-hours-label">Total Hours (Mon-Fri) 32:00 hrs</span>
+              <span className="aegis-total-hours-label">
+                Total Hours: {totalYtdHours ? `${totalYtdHours} hrs` : '2,565 hrs'}
+              </span>
             </div>
           </div>
 
           {/* Bar Chart Visual */}
-          <div className="aegis-bar-chart-container">
-            {/* Monday */}
-            <div className="aegis-bar-col">
-              <div className="aegis-bar-pill orange" style={{ height: '140px' }} title="8.5 hrs" />
-              <div className="aegis-day-indicator-capsule" />
-            </div>
+          <div className="aegis-bar-chart-container" style={{ gap: '6px' }}>
+            {(monthlyAttendanceGraph && monthlyAttendanceGraph.length > 0 ? monthlyAttendanceGraph : [
+              { monthName: 'Jan', year: 2026, totalHours: 339, percentage: 88, presentDays: 42 },
+              { monthName: 'Feb', year: 2026, totalHours: 269, percentage: 70, presentDays: 36 },
+              { monthName: 'Mar', year: 2026, totalHours: 314, percentage: 82, presentDays: 38 },
+              { monthName: 'Apr', year: 2026, totalHours: 303, percentage: 78, presentDays: 38 },
+              { monthName: 'May', year: 2026, totalHours: 289.5, percentage: 75, presentDays: 37 },
+              { monthName: 'Jun', year: 2026, totalHours: 321, percentage: 83, presentDays: 42 },
+              { monthName: 'Jul', year: 2026, totalHours: 307, percentage: 80, presentDays: 39 },
+              { monthName: 'Aug', year: 2026, totalHours: 385.5, percentage: 100, presentDays: 45 },
+              { monthName: 'Sep', year: 2026, totalHours: 34, percentage: 25, presentDays: 4 },
+            ]).map((item, idx, arr) => {
+              const isCurrent = idx === arr.length - 1;
+              const barHeight = Math.max(Math.round(((item.percentage || 40) / 100) * 140), 24);
+              const pillClass = isCurrent ? 'orange' : (idx % 2 === 0 ? 'orange' : 'cream');
+              const capsuleClass = item.totalHours === 0 ? 'gray' : '';
 
-            {/* Tuesday */}
-            <div className="aegis-bar-col">
-              <div className="aegis-bar-pill cream" style={{ height: '110px' }} title="7.0 hrs" />
-              <div className="aegis-day-indicator-capsule" />
-            </div>
-
-            {/* Wednesday */}
-            <div className="aegis-bar-col">
-              <div className="aegis-bar-pill orange" style={{ height: '155px' }} title="9.0 hrs" />
-              <div className="aegis-day-indicator-capsule" />
-            </div>
-
-            {/* Thursday */}
-            <div className="aegis-bar-col">
-              <div className="aegis-bar-pill cream" style={{ height: '100px' }} title="6.5 hrs" />
-              <div className="aegis-day-indicator-capsule" />
-            </div>
-
-            {/* Friday */}
-            <div className="aegis-bar-col">
-              <div className="aegis-bar-pill gray" style={{ height: '28px' }} title="Absent" />
-              <div className="aegis-day-indicator-capsule gray" />
-            </div>
+              return (
+                <div key={item.key || idx} className="aegis-bar-col" style={{ flex: 1, minWidth: 0, width: 'auto' }}>
+                  <div
+                    className={`aegis-bar-pill ${pillClass}`}
+                    style={{ height: `${barHeight}px`, width: '100%', maxWidth: '32px' }}
+                    title={`${item.label || item.monthName}: ${item.totalHours} hrs worked (${item.presentDays || 0} days present)`}
+                  />
+                  <div className={`aegis-day-indicator-capsule ${capsuleClass}`} style={{ width: '16px' }} />
+                </div>
+              );
+            })}
           </div>
 
-          {/* Day & Date Labels */}
-          <div className="aegis-day-labels">
-            <div className="aegis-col-label-group">
-              <span className="aegis-day-name">Mon</span>
-              <span className="aegis-day-date">Aug 31</span>
-            </div>
-            <div className="aegis-col-label-group">
-              <span className="aegis-day-name">Tue</span>
-              <span className="aegis-day-date">Sep 1</span>
-            </div>
-            <div className="aegis-col-label-group">
-              <span className="aegis-day-name">Wed</span>
-              <span className="aegis-day-date">Sep 2</span>
-            </div>
-            <div className="aegis-col-label-group">
-              <span className="aegis-day-name">Thu</span>
-              <span className="aegis-day-date">Sep 3</span>
-            </div>
-            <div className="aegis-col-label-group">
-              <span className="aegis-day-name">Fri</span>
-              <span className="aegis-day-date">Sep 4</span>
-            </div>
+          {/* Month & Year Labels */}
+          <div className="aegis-day-labels" style={{ gap: '6px' }}>
+            {(monthlyAttendanceGraph && monthlyAttendanceGraph.length > 0 ? monthlyAttendanceGraph : [
+              { monthName: 'Jan', year: 2026 },
+              { monthName: 'Feb', year: 2026 },
+              { monthName: 'Mar', year: 2026 },
+              { monthName: 'Apr', year: 2026 },
+              { monthName: 'May', year: 2026 },
+              { monthName: 'Jun', year: 2026 },
+              { monthName: 'Jul', year: 2026 },
+              { monthName: 'Aug', year: 2026 },
+              { monthName: 'Sep', year: 2026 },
+            ]).map((item, idx) => (
+              <div key={item.key || idx} className="aegis-col-label-group" style={{ flex: 1, minWidth: 0 }}>
+                <span className="aegis-day-name" style={{ fontSize: '11px' }}>{item.monthName}</span>
+                <span className="aegis-day-date" style={{ fontSize: '10px' }}>{item.year || 2026}</span>
+              </div>
+            ))}
           </div>
         </div>
 

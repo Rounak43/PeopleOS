@@ -179,23 +179,45 @@ const EmployeeAttendancePage = () => {
         <div className="card-body">
           <div className="attendance-metrics-grid" style={{ marginBottom: 0 }}>
             <div className="attendance-metric-item">
-              <div className="metric-item-label">Check In</div>
-              <div className="metric-item-value">{formatTime(todayRecord?.checkIn)}</div>
+              <div className="metric-icon-wrapper">📥</div>
+              <div className="metric-item-content">
+                <div className="metric-item-label">Check In</div>
+                <div className="metric-item-value">{formatTime(todayRecord?.checkIn)}</div>
+              </div>
             </div>
             <div className="attendance-metric-item">
-              <div className="metric-item-label">Check Out</div>
-              <div className="metric-item-value">{formatTime(todayRecord?.checkOut)}</div>
+              <div className="metric-icon-wrapper">📤</div>
+              <div className="metric-item-content">
+                <div className="metric-item-label">Check Out</div>
+                <div className="metric-item-value">{formatTime(todayRecord?.checkOut)}</div>
+              </div>
             </div>
             <div className="attendance-metric-item">
-              <div className="metric-item-label">Worked Hours</div>
-              <div className="metric-item-value">{todayRecord?.workedHours ? `${todayRecord.workedHours} hrs` : '—'}</div>
+              <div className="metric-icon-wrapper">⏱️</div>
+              <div className="metric-item-content">
+                <div className="metric-item-label">Worked Hours</div>
+                <div className="metric-item-value">{todayRecord?.workedHours ? `${todayRecord.workedHours} hrs` : '—'}</div>
+              </div>
             </div>
             <div className="attendance-metric-item">
-              <div className="metric-item-label">Overtime</div>
-              <div className="metric-item-value">
-                {todayRecord?.workedHours && todayRecord.workedHours > 8
-                  ? `${(todayRecord.workedHours - 8).toFixed(2)} hrs`
-                  : '0.00 hrs'}
+              <div className="metric-icon-wrapper">
+                {todayRecord?.workedHours && todayRecord.workedHours < 8 && todayRecord?.checkOut ? '🏃‍♂️' : '⚡'}
+              </div>
+              <div className="metric-item-content">
+                <div className="metric-item-label">
+                  {todayRecord?.workedHours && todayRecord.workedHours < 8 && todayRecord?.checkOut
+                    ? 'Early Checkout'
+                    : 'Overtime'}
+                </div>
+                <div className="metric-item-value">
+                  {todayRecord?.workedHours
+                    ? todayRecord.workedHours > 8
+                      ? `+${(todayRecord.workedHours - 8).toFixed(2)} hrs`
+                      : todayRecord.workedHours < 8 && todayRecord?.checkOut
+                      ? `${(8 - todayRecord.workedHours).toFixed(2)} hrs early`
+                      : '0.00 hrs'
+                    : '0.00 hrs'}
+                </div>
               </div>
             </div>
           </div>
@@ -312,7 +334,7 @@ const EmployeeAttendancePage = () => {
                 <th>Check In</th>
                 <th>Check Out</th>
                 <th>Working Hours</th>
-                <th>Overtime</th>
+                <th>Overtime / Early Checkout</th>
                 <th>Status</th>
                 <th>Remarks / Notes</th>
               </tr>
@@ -320,7 +342,23 @@ const EmployeeAttendancePage = () => {
             <tbody>
               {history.map((record) => {
                 const hrs = record.workedHours || 0;
-                const ot = hrs > 8 ? (hrs - 8).toFixed(2) : '0.00';
+                const isCheckedOut = !!record.checkOut;
+                let otDiffElement = <span className="text-muted">—</span>;
+
+                if (hrs > 8) {
+                  const ot = (hrs - 8).toFixed(2);
+                  otDiffElement = (
+                    <span style={{ color: '#D97706', fontWeight: 600 }}>+{ot} hrs OT</span>
+                  );
+                } else if (hrs < 8 && hrs > 0 && isCheckedOut) {
+                  const early = (8 - hrs).toFixed(2);
+                  otDiffElement = (
+                    <span style={{ color: '#DC2626', fontWeight: 600 }}>{early} hrs early</span>
+                  );
+                } else if (hrs === 8) {
+                  otDiffElement = <span>0.00 hrs</span>;
+                }
+
                 return (
                   <tr key={record._id || record.id}>
                     <td>
@@ -331,7 +369,7 @@ const EmployeeAttendancePage = () => {
                     <td>
                       <span className="font-medium">{hrs > 0 ? `${hrs} hrs` : '—'}</span>
                     </td>
-                    <td>{ot !== '0.00' ? <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>+{ot} hrs</span> : '—'}</td>
+                    <td>{otDiffElement}</td>
                     <td>{renderStatusBadge(record.status)}</td>
                     <td>
                       <span className="text-muted text-sm">{record.notes || '—'}</span>

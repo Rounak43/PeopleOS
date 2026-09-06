@@ -210,9 +210,13 @@ const ContractsPage = () => {
     });
     const firstPosId = matchingPositions.length > 0 ? (matchingPositions[0]._id || matchingPositions[0].id) : (jobPositions.length > 0 ? (jobPositions[0]._id || jobPositions[0].id) : '');
 
+    const firstEmp = employees.length > 0 ? employees[0] : null;
+    const firstEmpId = firstEmp ? (firstEmp._id || firstEmp.id) : '';
+    const defaultCode = firstEmp?.employeeCode ? `CNT-${firstEmp.employeeCode}` : `CNT-${Date.now().toString().slice(-4)}`;
+
     setFormData({
-      employeeId: employees.length > 0 ? (employees[0]._id || employees[0].id) : '',
-      contractCode: `CTR-${Date.now().toString().slice(-4)}`,
+      employeeId: firstEmpId,
+      contractCode: defaultCode,
       startDate: new Date().toISOString().slice(0, 10),
       endDate: '',
       durationType: 'Permanent',
@@ -646,7 +650,12 @@ const ContractsPage = () => {
                 label="Select Employee"
                 required
                 value={formData.employeeId}
-                onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
+                onChange={(e) => {
+                  const selEmpId = e.target.value;
+                  const selEmp = employees.find((emp) => (emp._id || emp.id) === selEmpId);
+                  const newCode = (!editingContract && selEmp?.employeeCode) ? `CNT-${selEmp.employeeCode}` : formData.contractCode;
+                  setFormData({ ...formData, employeeId: selEmpId, contractCode: newCode });
+                }}
                 options={employees.map((e) => ({
                   value: e._id || e.id,
                   label: `${e.employeeCode || ''} — ${e.fullName || e.name || e.email}`,

@@ -11,10 +11,12 @@ import Button from '../../../components/common/Button';
 import Input from '../../../components/common/Input';
 import Loading from '../../../components/common/Loading';
 import ErrorMessage from '../../../components/common/ErrorMessage';
+import Modal from '../../../components/common/Modal';
 import {
   getProfile,
   updateProfile,
 } from '../../../services/employee/employeePortalService';
+import { changePassword } from '../../../services/auth/authService';
 import '../employee.css';
 
 const EmployeeSettingsPage = () => {
@@ -29,6 +31,14 @@ const EmployeeSettingsPage = () => {
   const [attendanceAlerts, setAttendanceAlerts] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [feedback, setFeedback] = useState({ text: '', type: '' });
+
+  // Change Password State
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordError, setPasswordError] = useState(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -62,6 +72,50 @@ const EmployeeSettingsPage = () => {
       setFeedback({ text: err.message || 'Failed to update settings.', type: 'error' });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleOpenPasswordModal = () => {
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordError(null);
+    setIsPasswordModalOpen(true);
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPasswordError(null);
+
+    if (!currentPassword) {
+      setPasswordError('Current password is required.');
+      return;
+    }
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters long.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New passwords do not match.');
+      return;
+    }
+
+    setPasswordSaving(true);
+    try {
+      await changePassword({ currentPassword, newPassword });
+      setFeedback({
+        text: 'Password changed successfully! Your new password is now active.',
+        type: 'success',
+      });
+      setIsPasswordModalOpen(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => setFeedback({ text: '', type: '' }), 5000);
+    } catch (err) {
+      setPasswordError(err.message || 'Failed to change password. Please verify your current password.');
+    } finally {
+      setPasswordSaving(false);
     }
   };
 
@@ -183,25 +237,82 @@ const EmployeeSettingsPage = () => {
 
             <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid var(--color-border)' }}>
               <h4 style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, marginBottom: 8 }}>
-                Security &amp; Session
+                🔒 Security &amp; Password
               </h4>
               <p className="text-muted text-sm" style={{ marginBottom: 12 }}>
-                Logged in as <strong>{profile?.employeeCode}</strong> ({profile?.email})
+                Logged in as <strong>{profile?.employeeCode}</strong> ({profile?.email}). You can set or change your account password anytime.
               </p>
               <Button
-                variant="secondary"
+                variant="primary"
                 size="sm"
-                onClick={() => {
-                  setFeedback({ text: 'Password reset link sent to your registered email.', type: 'success' });
-                  setTimeout(() => setFeedback({ text: '', type: '' }), 4000);
-                }}
+                onClick={handleOpenPasswordModal}
               >
-                Request Password Reset
+                🔒 Change Password
               </Button>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Change Password Modal */}
+      <Modal
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+        title="🔒 Change Account Password"
+        size="md"
+      >
+        <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {passwordError && <ErrorMessage message={passwordError} />}
+
+          <p className="text-muted text-sm">
+            Enter your current password and choose a new password for your account ({profile?.email}).
+          </p>
+
+          <Input
+            label="Current Password"
+            type="password"
+            placeholder="Enter current password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            required
+          />
+
+          <Input
+            label="New Password"
+            type="password"
+            placeholder="At least 6 characters"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            required
+          />
+
+          <Input
+            label="Confirm New Password"
+            type="password"
+            placeholder="Re-enter new password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+          />
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setIsPasswordModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              loading={passwordSaving}
+            >
+              Update Password
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

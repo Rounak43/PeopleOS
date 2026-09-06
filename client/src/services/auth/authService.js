@@ -61,11 +61,17 @@ export const getCurrentUser = async () => {
   }
 };
 
+export const changePassword = async (passwords) => {
+  const res = await http.put('/api/auth/change-password', passwords);
+  return res.data || res;
+};
+
 const authService = {
   signin,
   signup,
   logout,
   getCurrentUser,
+  changePassword,
 };
 
 export default authService;

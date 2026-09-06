@@ -1,7 +1,6 @@
 /**
  * PeopleOS — Salary Rule Service
- * Member 3 (Payroll Frontend) — API communication only.
- * Salary rule computation belongs to the backend.
+ * Native fetch API wrapper
  */
 import http from '../common/http';
 

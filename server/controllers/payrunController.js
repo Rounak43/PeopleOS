@@ -250,6 +250,19 @@ const getMyPayslipById = async (req, res, next) => {
   }
 };
 
+/**
+ * DELETE /api/payruns/clean-duplicates
+ * Purge 0-rupee and duplicate payslips from database.
+ */
+const cleanDuplicateAndZeroPayslips = async (req, res, next) => {
+  try {
+    const result = await payrunService.cleanDuplicateAndZeroPayslips();
+    return sendSuccess(res, result, 'Successfully purged 0-rupee and duplicate payslips');
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getPayruns,
   getPayrunById,
@@ -264,4 +277,6 @@ module.exports = {
   updatePayslipsStatus,
   getMyPayslips,
   getMyPayslipById,
+  cleanDuplicateAndZeroPayslips,
 };
+

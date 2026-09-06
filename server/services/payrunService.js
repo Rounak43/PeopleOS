@@ -166,8 +166,8 @@ const computePayrun = async (payrunId, computedBy = null) => {
     throw err;
   }
 
-  // Delete any previously computed payslips (idempotent recompute)
-  await Payslip.deleteMany({ payrun: payrunId, state: { $in: ['Draft', 'Computed'] } });
+  // Delete any previously computed payslips (idempotent recompute - remove all state payslips for payrun)
+  await Payslip.deleteMany({ payrun: payrunId });
 
   const employees = await Employee.find({
     _id: { $in: payrun.employees.map((ref) => ref.employee) },
@@ -208,34 +208,7 @@ const computePayrun = async (payrunId, computedBy = null) => {
           employeeName: employee.fullName,
           reason: contractErr.message,
         });
-
-        // Create a Draft payslip with the error (so HR can see it)
-        const errPayslip = new Payslip({
-          payrun: payrun._id,
-          employee: employee._id,
-          contract: null,
-          employeeNameSnapshot: employee.fullName,
-          employeeCodeSnapshot: employee.employeeCode,
-          wageSnapshot: 0,
-          periodStart: payrun.periodStart,
-          periodEnd: payrun.periodEnd,
-          workedDays: 0,
-          regularHours: 0,
-          overtimeHours: 0,
-          grossPay: 0,
-          totalDeductions: 0,
-          netPay: 0,
-          state: 'Draft',
-          lines: [],
-          warnings: [{
-            type: 'MISSING_CONTRACT',
-            message: contractErr.message,
-            severity: 'Error',
-            isBlocking: true,
-          }],
-        });
-        await errPayslip.save();
-        computedPayslips.push(errPayslip);
+        // Skip creating a 0-rupee payslip for employees without contracts
         continue;
       }
       throw contractErr;
@@ -715,6 +688,77 @@ const updatePayrunState = async (id, state) => {
   return payrun;
 };
 
+/**
+ * Cleanup function: deletes all 0-rupee payslips and duplicate payslips across DB,
+ * and updates Payrun totals.
+ */
+const cleanDuplicateAndZeroPayslips = async () => {
+  const zeroRes = await Payslip.deleteMany({
+    $or: [
+      { netPay: { $lte: 0 } },
+      { grossPay: { $lte: 0 } },
+      { netPay: null },
+      { grossPay: null },
+    ],
+  });
+
+  const remainingSlips = await Payslip.find({}).sort({ createdAt: -1 }).lean();
+  const groupMap = {};
+  const duplicateIdsToDelete = [];
+
+  for (const slip of remainingSlips) {
+    const empId = slip.employee ? slip.employee.toString() : 'unknown';
+    const pStart = slip.periodStart ? new Date(slip.periodStart).toISOString().slice(0, 10) : 'none';
+    const pEnd = slip.periodEnd ? new Date(slip.periodEnd).toISOString().slice(0, 10) : 'none';
+    const key = `${empId}_${pStart}_${pEnd}`;
+
+    if (!groupMap[key]) {
+      groupMap[key] = slip;
+    } else {
+      const existing = groupMap[key];
+      if ((slip.netPay || 0) > (existing.netPay || 0)) {
+        duplicateIdsToDelete.push(existing._id);
+        groupMap[key] = slip;
+      } else {
+        duplicateIdsToDelete.push(slip._id);
+      }
+    }
+  }
+
+  let dupCount = 0;
+  if (duplicateIdsToDelete.length > 0) {
+    const dupRes = await Payslip.deleteMany({ _id: { $in: duplicateIdsToDelete } });
+    dupCount = dupRes.deletedCount;
+  }
+
+  // Recalculate payrun totals
+  const payruns = await Payrun.find({});
+  for (const payrun of payruns) {
+    const slipsForPayrun = await Payslip.find({ payrun: payrun._id });
+    if (slipsForPayrun.length === 0) {
+      await Payrun.deleteOne({ _id: payrun._id });
+    } else {
+      payrun.totalGross = slipsForPayrun.reduce((s, p) => s + (p.grossPay || 0), 0);
+      payrun.totalDeductions = slipsForPayrun.reduce((s, p) => s + (p.totalDeductions || 0), 0);
+      payrun.totalNet = slipsForPayrun.reduce((s, p) => s + (p.netPay || 0), 0);
+      payrun.employeeCount = slipsForPayrun.length;
+      payrun.employees = slipsForPayrun.map((p) => ({
+        employee: p.employee,
+        contract: p.contract || null,
+      }));
+      await payrun.save();
+    }
+  }
+
+  return {
+    deletedZeroCount: zeroRes.deletedCount || 0,
+    deletedDuplicateCount: dupCount,
+    totalDeletedCount: (zeroRes.deletedCount || 0) + dupCount,
+    remainingPayslips: await Payslip.countDocuments(),
+    remainingPayruns: await Payrun.countDocuments(),
+  };
+};
+
 module.exports = {
   // Lifecycle
   createPayrun,
@@ -730,7 +774,8 @@ module.exports = {
   getAllPayslips,
   getPayslipsByEmployee,
 
-  // Mutations
+  // Cleanup & Mutations
+  cleanDuplicateAndZeroPayslips,
   deletePayrun,
   updatePayslipsStatus,
 
@@ -738,3 +783,4 @@ module.exports = {
   createPayrunBatch: createPayrun,   // alias
   updatePayrunState,
 };
+

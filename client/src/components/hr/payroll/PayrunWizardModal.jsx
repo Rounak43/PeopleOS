@@ -12,7 +12,7 @@ import Select from '../../common/Select';
 import Loading from '../../common/Loading';
 import ErrorMessage from '../../common/ErrorMessage';
 import { getEmployees } from '../../../services/hr/employeeService';
-import { createPayrunBatch } from '../../../services/hr/payrunService';
+import { createPayrunBatch, getAllPayslips } from '../../../services/payroll/payrunService';
 import './PayrunWizardModal.css';
 
 const PayrunWizardModal = ({ isOpen, onClose, onSuccess }) => {
@@ -27,6 +27,7 @@ const PayrunWizardModal = ({ isOpen, onClose, onSuccess }) => {
 
   // Step 2 State
   const [employees, setEmployees] = useState([]);
+  const [alreadyPaidEmpIds, setAlreadyPaidEmpIds] = useState([]);
   const [fetchingEmployees, setFetchingEmployees] = useState(false);
   const [selectedEmpIds, setSelectedEmpIds] = useState([]);
   const [searchEmp, setSearchEmp] = useState('');
@@ -34,17 +35,51 @@ const PayrunWizardModal = ({ isOpen, onClose, onSuccess }) => {
   // Step 3 State
   const [computedResult, setComputedResult] = useState(null);
 
-  // Fetch employees on step 2
+  // Fetch employees and check period paid status on step 2
   useEffect(() => {
-    if (step === 2 && employees.length === 0) {
+    if (step === 2) {
       const loadStaff = async () => {
         setFetchingEmployees(true);
         try {
-          const res = await getEmployees({ limit: 500 });
-          const list = res?.data || res?.items || res || [];
-          const activeList = Array.isArray(list) ? list.filter((e) => (e.status || 'active') === 'active') : [];
-          setEmployees(activeList);
-          setSelectedEmpIds(activeList.map((e) => e._id || e.id)); // Default select all active
+          const [empRes, payslipsRes] = await Promise.allSettled([
+            getEmployees({ limit: 500 }),
+            getAllPayslips({ periodStart, periodEnd, state: 'Paid,Validated', limit: 500 }),
+          ]);
+
+          let activeList = [];
+          if (empRes.status === 'fulfilled') {
+            const list = empRes.value?.data || empRes.value?.items || empRes.value || [];
+            activeList = Array.isArray(list) ? list.filter((e) => (e.status || 'active') === 'active') : [];
+            setEmployees(activeList);
+          }
+
+          let paidIds = [];
+          if (payslipsRes.status === 'fulfilled') {
+            const slips = payslipsRes.value?.data?.items || payslipsRes.value?.items || payslipsRes.value?.data || payslipsRes.value || [];
+            const start = new Date(periodStart);
+            const end = new Date(periodEnd);
+
+            paidIds = (Array.isArray(slips) ? slips : [])
+              .filter((ps) => {
+                if (!['Paid', 'Validated'].includes(ps.state)) return false;
+                const psStart = new Date(ps.periodStart);
+                const psEnd = new Date(ps.periodEnd);
+                return psStart <= end && psEnd >= start;
+              })
+              .map((ps) => {
+                const emp = ps.employee;
+                return typeof emp === 'object' ? emp?._id || emp?.id : emp;
+              })
+              .filter(Boolean);
+
+            setAlreadyPaidEmpIds(paidIds);
+          }
+
+          // Pre-select employees who have NOT been paid yet for this period
+          const eligibleIds = activeList
+            .map((e) => e._id || e.id)
+            .filter((id) => !paidIds.includes(id));
+          setSelectedEmpIds(eligibleIds);
         } catch (err) {
           setError('Failed to load eligible employee records');
         } finally {
@@ -53,7 +88,7 @@ const PayrunWizardModal = ({ isOpen, onClose, onSuccess }) => {
       };
       loadStaff();
     }
-  }, [step, employees.length]);
+  }, [step, periodStart, periodEnd]);
 
   const filteredEmployees = useMemo(() => {
     if (!searchEmp.trim()) return employees;
@@ -66,15 +101,20 @@ const PayrunWizardModal = ({ isOpen, onClose, onSuccess }) => {
     );
   }, [employees, searchEmp]);
 
+  const eligibleFilteredEmployees = useMemo(() => {
+    return filteredEmployees.filter((emp) => !alreadyPaidEmpIds.includes(emp._id || emp.id));
+  }, [filteredEmployees, alreadyPaidEmpIds]);
+
   const handleSelectAll = (e) => {
     if (e.target.checked) {
-      setSelectedEmpIds(filteredEmployees.map((emp) => emp._id || emp.id));
+      setSelectedEmpIds(eligibleFilteredEmployees.map((emp) => emp._id || emp.id));
     } else {
       setSelectedEmpIds([]);
     }
   };
 
   const handleToggleEmp = (id) => {
+    if (alreadyPaidEmpIds.includes(id)) return; // Prevent selecting already paid staff
     setSelectedEmpIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
     );
@@ -218,32 +258,52 @@ const PayrunWizardModal = ({ isOpen, onClose, onSuccess }) => {
             </div>
 
             {fetchingEmployees ? (
-              <Loading message="Loading active employee contracts..." />
+              <Loading message="Loading active employee contracts and period payment status..." />
             ) : (
               <div className="wizard-staff-frame">
                 <div className="wizard-staff-toolbar">
                   <label className="checkbox-label">
                     <input
                       type="checkbox"
-                      checked={selectedEmpIds.length === filteredEmployees.length && filteredEmployees.length > 0}
+                      checked={
+                        selectedEmpIds.length === eligibleFilteredEmployees.length &&
+                        eligibleFilteredEmployees.length > 0
+                      }
                       onChange={handleSelectAll}
+                      disabled={eligibleFilteredEmployees.length === 0}
                     />
-                    <strong>Select All Staff ({filteredEmployees.length})</strong>
+                    <strong>Select All Eligible ({eligibleFilteredEmployees.length} Pending)</strong>
                   </label>
                   <span className="selected-count-pill">{selectedEmpIds.length} Selected</span>
                 </div>
 
+                {employees.length > 0 && eligibleFilteredEmployees.length === 0 && (
+                  <div style={{ background: '#f1f5f9', color: '#475569', padding: '12px 16px', margin: '12px 12px 0 12px', borderRadius: '8px', fontSize: '13px', border: '1px solid #cbd5e1' }}>
+                    ℹ️ All active employees have already received salary for the period ({periodStart} — {periodEnd}). No pending unpaid employees.
+                  </div>
+                )}
+
                 <div className="staff-checklist-scroll">
                   {filteredEmployees.map((emp) => {
                     const empId = emp._id || emp.id;
+                    const isAlreadyPaid = alreadyPaidEmpIds.includes(empId);
                     const isChecked = selectedEmpIds.includes(empId);
                     const fullName = emp.fullName || `${emp.firstName || ''} ${emp.lastName || ''}`;
 
                     return (
-                      <label key={empId} className={`staff-checklist-row ${isChecked ? 'selected' : ''}`}>
+                      <label
+                        key={empId}
+                        className={`staff-checklist-row ${isChecked ? 'selected' : ''} ${isAlreadyPaid ? 'already-paid-row' : ''}`}
+                        style={{
+                          opacity: isAlreadyPaid ? 0.6 : 1,
+                          cursor: isAlreadyPaid ? 'not-allowed' : 'pointer',
+                          background: isAlreadyPaid ? '#f8fafc' : undefined,
+                        }}
+                      >
                         <input
                           type="checkbox"
                           checked={isChecked}
+                          disabled={isAlreadyPaid}
                           onChange={() => handleToggleEmp(empId)}
                         />
                         <span className="emp-avatar-icon">👤</span>
@@ -251,7 +311,15 @@ const PayrunWizardModal = ({ isOpen, onClose, onSuccess }) => {
                           <span className="staff-name">{fullName}</span>
                           <span className="staff-sub">{emp.email} • {emp.employeeCode}</span>
                         </div>
-                        <span className="badge badge-success">ACTIVE CONTRACT</span>
+                        {isAlreadyPaid ? (
+                          <span className="badge badge-neutral" style={{ background: '#e2e8f0', color: '#475569', border: '1px solid #cbd5e1', fontWeight: 600 }}>
+                            ✓ ALREADY PAID (PERIOD COVERED)
+                          </span>
+                        ) : (
+                          <span className="badge badge-success">
+                            ELIGIBLE (UNPAID)
+                          </span>
+                        )}
                       </label>
                     );
                   })}

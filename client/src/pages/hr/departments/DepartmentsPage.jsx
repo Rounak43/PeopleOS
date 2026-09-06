@@ -60,19 +60,19 @@ const DepartmentsPage = () => {
     setError(null);
     try {
       const [deptRes, empRes] = await Promise.allSettled([
-        getDepartments(),
-        getEmployees(),
+        getDepartments({ limit: 100 }),
+        getEmployees({ limit: 500 }),
       ]);
 
       if (deptRes.status === 'fulfilled') {
-        const rawDepts = deptRes.value?.data || deptRes.value || [];
+        const rawDepts = deptRes.value?.data?.items || deptRes.value?.items || deptRes.value?.data || deptRes.value || [];
         setDepartments(Array.isArray(rawDepts) ? rawDepts : []);
       } else {
         throw deptRes.reason || new Error('Failed to fetch departments from server');
       }
 
       if (empRes.status === 'fulfilled') {
-        const rawEmps = empRes.value?.data || empRes.value || [];
+        const rawEmps = empRes.value?.data?.items || empRes.value?.items || empRes.value?.data || empRes.value || [];
         setEmployees(Array.isArray(rawEmps) ? rawEmps : []);
       }
     } catch (err) {
@@ -129,6 +129,9 @@ const DepartmentsPage = () => {
   };
 
   const getDeptEmployeeCount = (dept) => {
+    if (typeof dept.employeeCount === 'number' && dept.employeeCount > 0) {
+      return dept.employeeCount;
+    }
     return getDeptEmployees(dept).length;
   };
 

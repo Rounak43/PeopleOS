@@ -19,7 +19,14 @@ import {
   getLeaveOverview,
   submitLeaveRequest,
 } from '../../../services/employee/employeePortalService';
-import '../employee.css';
+const getLeaveIcon = (name = '') => {
+  const lower = name.toLowerCase();
+  if (lower.includes('sick')) return '🏥';
+  if (lower.includes('vacation')) return '🌴';
+  if (lower.includes('maternity') || lower.includes('paternity')) return '👶';
+  if (lower.includes('casual')) return '☕';
+  return '🏖️';
+};
 
 const EmployeeLeavePage = () => {
   const [leaveData, setLeaveData] = useState(null);
@@ -112,16 +119,13 @@ const EmployeeLeavePage = () => {
   }));
 
   const renderStatusBadge = (status) => {
-    switch (status) {
-      case 'approved':
-        return <span className="badge badge-success">Approved</span>;
-      case 'submitted':
-        return <span className="badge badge-info">Submitted / In Review</span>;
-      case 'refused':
-        return <span className="badge badge-danger">Refused</span>;
-      default:
-        return <span className="badge badge-neutral">{status || 'Draft'}</span>;
+    if (status === 'approved') {
+      return <span className="badge badge-success">Approved</span>;
     }
+    if (status === 'refused' || status === 'rejected') {
+      return <span className="badge badge-danger">Rejected</span>;
+    }
+    return <span className="badge badge-warning">Pending</span>;
   };
 
   const formatDate = (isoString) => {
@@ -165,18 +169,28 @@ const EmployeeLeavePage = () => {
           allocations.map((alloc) => {
             const name = alloc.timeOffTypeId?.name || 'Leave';
             const unit = alloc.timeOffTypeId?.unit || 'days';
+            const icon = getLeaveIcon(name);
+            const percentUsed = alloc.allocatedAmount > 0 
+              ? Math.min(100, Math.round((alloc.takenAmount / alloc.allocatedAmount) * 100))
+              : 0;
+
             return (
-              <div key={alloc._id} className="card leave-balance-card" style={{ padding: 20 }}>
-                <span className="leave-type-title" style={{ fontSize: 'var(--font-size-md)' }}>{name}</span>
-                <span className="leave-amount-big" style={{ margin: '8px 0' }}>
-                  {alloc.remainingAmount}{' '}
-                  <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--color-text-secondary)' }}>
-                    {unit} available
-                  </span>
-                </span>
-                <span className="leave-sub-stat">
-                  Allocated: {alloc.allocatedAmount} {unit} • Used: {alloc.takenAmount} {unit}
-                </span>
+              <div key={alloc._id} className="leave-balance-card">
+                <div className="leave-card-header">
+                  <div className="leave-card-icon">{icon}</div>
+                  <h4 className="leave-type-title">{name}</h4>
+                </div>
+                <div className="leave-amount-section">
+                  <span className="leave-amount-big">{alloc.remainingAmount}</span>
+                  <span className="leave-amount-unit">{unit} available</span>
+                </div>
+                <div className="leave-progress-bar">
+                  <div className="leave-progress-fill" style={{ width: `${percentUsed}%` }}></div>
+                </div>
+                <div className="leave-card-footer">
+                  <span className="leave-stat-pill">Allocated: <strong>{alloc.allocatedAmount} {unit}</strong></span>
+                  <span className="leave-stat-pill">Used: <strong>{alloc.takenAmount} {unit}</strong></span>
+                </div>
               </div>
             );
           })

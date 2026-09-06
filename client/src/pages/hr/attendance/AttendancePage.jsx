@@ -514,6 +514,15 @@ const AttendancePage = () => {
                     </td>
                     <td>
                       <strong>{r.workedHours ? `${r.workedHours} hrs` : '0 hrs'}</strong>
+                      {r.workedHours && r.workedHours < 8 && r.checkOut ? (
+                        <div style={{ fontSize: '0.75rem', color: '#DC2626', fontWeight: 600 }}>
+                          {(8 - r.workedHours).toFixed(2)}h early checkout
+                        </div>
+                      ) : r.workedHours && r.workedHours > 8 ? (
+                        <div style={{ fontSize: '0.75rem', color: '#D97706', fontWeight: 600 }}>
+                          +{(r.workedHours - 8).toFixed(2)}h overtime
+                        </div>
+                      ) : null}
                     </td>
                     <td>
                       <span className={`badge badge-${r.status || 'present'}`}>

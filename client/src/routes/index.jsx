@@ -28,6 +28,7 @@ const ContractsPage        = lazy(() => import('../pages/hr/contracts/ContractsP
 const AttendancePage       = lazy(() => import('../pages/hr/attendance/AttendancePage'));
 const TimeOffPage          = lazy(() => import('../pages/hr/timeOff/TimeOffPage'));
 const HRPayrollPage        = lazy(() => import('../pages/hr/payroll/HRPayrollPage'));
+const PayslipsPage         = lazy(() => import('../pages/payroll/payslips/PayslipsPage'));
 
 const RootRedirect = () => {
   const { user } = useAuth();
@@ -71,6 +72,12 @@ const AppRoutes = () => {
               <Route path="/hr/time-off/allocations" element={<TimeOffPage />} />
               <Route path="/hr/time-off/types"       element={<TimeOffPage />} />
               <Route path="/hr/payroll"            element={<HRPayrollPage />} />
+              <Route path="/payroll"               element={<HRPayrollPage />} />
+              <Route path="/payroll/payruns"       element={<HRPayrollPage />} />
+              <Route path="/payroll/payruns/:id"   element={<HRPayrollPage />} />
+              <Route path="/payroll/configuration" element={<HRPayrollPage />} />
+              <Route path="/payroll/payslips"      element={<PayslipsPage />} />
+              <Route path="/payroll/payslips/:id"  element={<PayslipsPage />} />
             </Route>
 
             {/* Catch-all inside layout */}

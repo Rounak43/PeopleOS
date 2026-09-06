@@ -1,6 +1,6 @@
 /**
  * PeopleOS — Salary Structure Service
- * Member 3 (Payroll Frontend) — API communication only.
+ * Native fetch API wrapper
  */
 import http from '../common/http';
 

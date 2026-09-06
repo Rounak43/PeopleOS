@@ -1,30 +1,22 @@
 /**
- * PeopleOS — Employee Payroll & Payslips Page
- * Route: /employee/payroll
- *
- * Displays employee's confidential salary payslips and detailed breakdown modal.
- * Uses ₹ INR currency formatting and integrates PayslipDetailModal.
+ * PeopleOS — Employee Self-Service Payslips Page (/employee/payroll)
  */
-
 import React, { useState, useEffect, useCallback } from 'react';
 import Button from '../../../components/common/Button';
 import EmptyState from '../../../components/common/EmptyState';
-import ErrorMessage from '../../../components/common/ErrorMessage';
 import Loading from '../../../components/common/Loading';
-import PayslipDetailModal from '../../../components/hr/payroll/PayslipDetailModal';
-import {
-  getPayslips,
-  getPayslipById,
-} from '../../../services/employee/employeePortalService';
-import '../employee.css';
+import Modal from '../../../components/common/Modal';
+import PayslipDocument from '../../../components/payroll/PayslipDocument';
+import { getPayslips, getPayslipById } from '../../../services/employee/employeePortalService';
+import { formatCurrency, formatPeriod, getStatusBadgeClass } from '../../../utils/formatters';
+import '../../../components/payroll/Payroll.css';
 
 const EmployeePayrollPage = () => {
   const [payslips, setPayslips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // Selected Payslip Detail Modal
   const [selectedPayslip, setSelectedPayslip] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const fetchPayslipData = useCallback(async () => {
     setLoading(true);
@@ -34,8 +26,7 @@ const EmployeePayrollPage = () => {
       const list = res.data || res;
       setPayslips(Array.isArray(list) ? list : []);
     } catch (err) {
-      console.error('Failed to load payslips:', err);
-      setError(err.message || 'Unable to retrieve payslip records.');
+      setError(err.message || 'Unable to retrieve your payslip records.');
     } finally {
       setLoading(false);
     }
@@ -49,8 +40,11 @@ const EmployeePayrollPage = () => {
     try {
       const res = await getPayslipById(payslipId);
       setSelectedPayslip(res.data || res);
-    } catch (err) {
-      console.error('Failed to view payslip detail:', err);
+      setIsModalOpen(true);
+    } catch {
+      const shallow = payslips.find((p) => (p._id || p.id) === payslipId);
+      setSelectedPayslip(shallow);
+      setIsModalOpen(true);
     }
   };
 
@@ -58,90 +52,93 @@ const EmployeePayrollPage = () => {
     return <Loading message="Loading your payslips..." />;
   }
 
-  if (error) {
-    return <ErrorMessage message={error} onRetry={fetchPayslipData} />;
-  }
-
-  const formatDate = (isoString) => {
-    if (!isoString) return '—';
-    return new Date(isoString).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
-  };
-
-  const renderStateBadge = (state) => {
-    switch ((state || '').toUpperCase()) {
-      case 'PAID':
-        return <span className="badge badge-success">PAID / RECEIVED</span>;
-      case 'VERIFIED':
-        return <span className="badge badge-info">VERIFIED</span>;
-      default:
-        return <span className="badge badge-neutral">{state || 'Draft'}</span>;
-    }
-  };
-
   return (
-    <div className="module-page">
-      {/* Page Header */}
-      <div className="page-header">
-        <div>
-          <h2 className="page-title">My Payroll &amp; Payslips</h2>
-          <p className="page-subtitle">Access your verified salary payments and tax deduction statements</p>
+    <div className="payroll-container">
+      <div className="payroll-header">
+        <div className="payroll-header-info">
+          <h1>My Payroll &amp; Payslips</h1>
+          <p>Access your official salary statements and tax deduction breakdowns.</p>
         </div>
       </div>
 
-      {payslips.length === 0 ? (
-        <EmptyState
-          title="No Payslips Available"
-          description="Your payroll statements will be listed here once generated and published by the HR team."
-        />
-      ) : (
-        <div className="table-container card">
-          <table>
-            <thead>
-              <tr>
-                <th>Pay Period / Batch</th>
-                <th>Payment Date</th>
-                <th>Gross Earnings</th>
-                <th>Net Take-Home Pay</th>
-                <th>Status</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {payslips.map((slip) => (
-                <tr key={slip._id}>
-                  <td>
-                    <span className="font-semibold">{slip.payrun?.name || 'Monthly Payroll Batch'}</span>
-                  </td>
-                  <td>{formatDate(slip.paymentDate || slip.createdAt)}</td>
-                  <td>₹{(slip.grossPay || 0).toLocaleString('en-IN')}</td>
-                  <td>
-                    <span className="font-semibold" style={{ color: 'var(--color-primary)' }}>
-                      ₹{(slip.netPay || 0).toLocaleString('en-IN')}
-                    </span>
-                  </td>
-                  <td>{renderStateBadge(slip.state)}</td>
-                  <td style={{ textAlign: 'right' }}>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => handleViewPayslip(slip._id)}
-                    >
-                      🖨️ View &amp; Print PDF Payslip
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {error && (
+        <div style={{ background: '#fef2f2', color: '#dc2626', padding: '12px 16px', borderRadius: '8px', fontSize: '13px' }}>
+          {error}
         </div>
       )}
 
-      {/* Official Printable Payslip PDF Modal */}
-      <PayslipDetailModal
-        isOpen={!!selectedPayslip}
-        onClose={() => setSelectedPayslip(null)}
-        payslip={selectedPayslip}
-      />
+      {payslips.length === 0 ? (
+        <div className="payroll-card">
+          <EmptyState
+            title="No Payslips Available"
+            message="Your payroll statements will be listed here once generated and published by HR."
+          />
+        </div>
+      ) : (
+        <div className="payroll-card">
+          <div className="payroll-table-wrapper">
+            <table className="payroll-table">
+              <thead>
+                <tr>
+                  <th>Pay Period</th>
+                  <th>Gross Earnings</th>
+                  <th>Total Deductions</th>
+                  <th>Net Take-Home</th>
+                  <th>Status</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payslips.map((slip) => {
+                  const slipId = slip._id || slip.id;
+                  const gross = slip.grossPay || 0;
+                  const deductions = slip.totalDeductions || 0;
+                  const net = slip.netPay || (gross - deductions);
+
+                  return (
+                    <tr key={slipId} onClick={() => handleViewPayslip(slipId)} style={{ cursor: 'pointer' }}>
+                      <td>
+                        <strong>{formatPeriod(slip.periodStart, slip.periodEnd)}</strong>
+                      </td>
+                      <td>{formatCurrency(gross)}</td>
+                      <td style={{ color: '#dc2626' }}>{formatCurrency(deductions)}</td>
+                      <td>
+                        <strong style={{ color: '#ea580c' }}>{formatCurrency(net)}</strong>
+                      </td>
+                      <td>
+                        <span className={getStatusBadgeClass(slip.state || 'Paid')}>
+                          {slip.state || 'Paid'}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => handleViewPayslip(slipId)}
+                        >
+                          🖨️ View Payslip
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Official Salary Statement"
+        size="lg"
+      >
+        <PayslipDocument
+          payslip={selectedPayslip}
+          onClose={() => setIsModalOpen(false)}
+        />
+      </Modal>
     </div>
   );
 };

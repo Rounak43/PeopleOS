@@ -88,10 +88,10 @@ const LoginPage = () => {
           <div className="po-header-brand">
             <div className="po-logo-badge">
               <span className="po-logo-p">P</span>
-              <span className="po-logo-o">O</span>
+              <span className="po-logo-o">OS</span>
             </div>
-            <h1 className="po-title">PO System Portal</h1>
-            <p className="po-subtitle">HR &amp; Payroll Management Sys</p>
+            <h1 className="po-title">PeopleOS</h1>
+            <p className="po-subtitle">HR &amp; Payroll Management System</p>
           </div>
 
           {/* Auth Card */}
@@ -123,7 +123,7 @@ const LoginPage = () => {
                 <input
                   type="text"
                   id="email"
-                  placeholder="user@posystem.com or EMP-101"
+                  placeholder="user@peopleos.com or OS26DS010"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -135,14 +135,14 @@ const LoginPage = () => {
               {/* Password Field */}
               <div className="po-field-group">
                 <div className="po-label-row">
-                  <label htmlFor="pass" className="po-label">Pass</label>
+                  <label htmlFor="pass" className="po-label">Password</label>
                   <button
                     type="button"
                     className="po-forgot-link"
                     onClick={handleForgotPassword}
                     disabled={isSubmitting}
                   >
-                    forgot pass?
+                    Forgot password?
                   </button>
                 </div>
                 <input
@@ -168,7 +168,7 @@ const LoginPage = () => {
                   disabled={isSubmitting}
                 />
                 <label htmlFor="togglePass" className="po-checkbox-label">
-                  Show Pass
+                  Show Password
                 </label>
               </div>
 
@@ -211,7 +211,7 @@ const LoginPage = () => {
       {/* Footer */}
       <footer className="po-footer">
         <div className="po-footer-container">
-          <p>&copy; 2026 PO HR &amp; Payroll Management System. All rights reserved.</p>
+          <p>&copy; 2026 PeopleOS HR &amp; Payroll Management System. All rights reserved.</p>
           <div className="po-footer-links">
             <a href="#privacy" className="po-footer-link">Privacy Policy</a>
             <a href="#terms" className="po-footer-link">Terms of Service</a>

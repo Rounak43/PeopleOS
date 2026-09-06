@@ -202,13 +202,17 @@ const WorkingSchedulesPage = () => {
       const [sH, sM] = line.startTime.split(':').map(Number);
       const [eH, eM] = line.endTime.split(':').map(Number);
       const startMins = sH * 60 + sM;
-      const endMins = eH * 60 + eM;
+      let endMins = eH * 60 + eM;
 
       if (isNaN(startMins) || isNaN(endMins)) {
         return `Invalid time format on ${line.dayOfWeek}`;
       }
       if (endMins <= startMins) {
-        return `End time must be after start time on ${line.dayOfWeek}`;
+        endMins += 24 * 60; // Overnight shift crossing midnight
+      }
+      const shiftDuration = endMins - startMins - (line.breakMinutes || 0);
+      if (shiftDuration <= 0) {
+        return `Break minutes cannot exceed shift duration on ${line.dayOfWeek}`;
       }
       if (line.breakMinutes < 0) {
         return `Break minutes cannot be negative on ${line.dayOfWeek}`;
@@ -252,10 +256,16 @@ const WorkingSchedulesPage = () => {
       return;
     }
 
+    const targetId = selectedSchedule?._id || selectedSchedule?.id;
+    if (!targetId) {
+      setFormError('No working schedule selected for editing');
+      return;
+    }
+
     setSubmitting(true);
     setFormError(null);
     try {
-      await updateWorkingSchedule(selectedSchedule._id, {
+      await updateWorkingSchedule(targetId, {
         name: scheduleName,
         type: scheduleType,
         lines,
@@ -270,14 +280,15 @@ const WorkingSchedulesPage = () => {
   };
 
   const handleDeleteConfirm = async () => {
-    if (!selectedSchedule) return;
+    const targetId = selectedSchedule?._id || selectedSchedule?.id;
+    if (!targetId) return;
     setSubmitting(true);
     try {
-      await deleteWorkingSchedule(selectedSchedule._id);
+      await deleteWorkingSchedule(targetId);
       setIsDeleteDialogOpen(false);
       fetchSchedules();
     } catch (err) {
-      setError(err.message || 'Unable to delete working schedule because it is assigned to employees or contracts.');
+      setError(err.message || 'Failed to delete working schedule');
       setIsDeleteDialogOpen(false);
     } finally {
       setSubmitting(false);

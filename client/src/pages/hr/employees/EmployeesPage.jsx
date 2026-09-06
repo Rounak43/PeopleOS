@@ -228,7 +228,7 @@ const EmployeesPage = () => {
         <div className="search-box">
           <Input
             id="emp-search"
-            placeholder="Search by employee name, email, code (e.g. EMP-101), or position..."
+            placeholder="Search by employee name, email, Employee ID (e.g. OS26DS010), or position..."
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
@@ -314,7 +314,7 @@ const EmployeesPage = () => {
           <div className="table-meta-bar">
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <div className="meta-sequence-pill">
-                <span>🔢 Sequenced:</span> <strong>EMP-101 → EMP-300</strong>
+                <span>🔢 Format:</span> <strong>OSYYDDNNN (e.g. OS26DS010)</strong>
               </div>
 
               {/* Kanban / List View Toggle Button */}
@@ -366,7 +366,7 @@ const EmployeesPage = () => {
                     const fullName =
                       emp.fullName ||
                       (emp.firstName && emp.lastName ? `${emp.firstName} ${emp.lastName}` : emp.name || emp.email);
-                    const empCode = emp.employeeCode || emp.id || emp._id || 'EMP-N/A';
+                    const empCode = emp.employeeCode || emp.id || emp._id || 'OS26DS000';
                     const deptRaw = emp.departmentId?.name || emp.department || 'General';
                     const deptName = cleanDeptName(deptRaw);
                     const jobTitle = emp.jobPositionId?.title || emp.jobTitle || emp.position || 'Staff';

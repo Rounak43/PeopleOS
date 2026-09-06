@@ -91,6 +91,65 @@ const getDashboard = async (req, res, next) => {
     totalWorkedHoursThisMonth = Math.round(totalWorkedHoursThisMonth * 100) / 100;
     totalOvertimeThisMonth = Math.round(totalOvertimeThisMonth * 100) / 100;
 
+    // ── Monthly Attendance Breakdown (Graph Data Jan 2026 - Present) ──
+    const startOfYear = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+    const yearlyAttendances = await Attendance.find({
+      employeeId,
+      checkIn: { $gte: startOfYear, $lte: endOfToday },
+    }).sort({ checkIn: 1 });
+
+    const monthMap = {};
+    const monthsList = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const currentMonthIndex = now.getMonth();
+
+    for (let m = 0; m <= currentMonthIndex; m++) {
+      const monthKey = `${now.getFullYear()}-${String(m + 1).padStart(2, '0')}`;
+      monthMap[monthKey] = {
+        key: monthKey,
+        monthName: monthsList[m],
+        year: now.getFullYear(),
+        label: `${monthsList[m]} ${now.getFullYear()}`,
+        totalHours: 0,
+        presentDays: 0,
+        absentDays: 0,
+        overtimeHours: 0,
+        daysCount: 0,
+      };
+    }
+
+    yearlyAttendances.forEach((record) => {
+      if (!record.checkIn) return;
+      const d = new Date(record.checkIn);
+      const mKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (monthMap[mKey]) {
+        const hrs = record.workedHours || 0;
+        monthMap[mKey].totalHours += hrs;
+        monthMap[mKey].daysCount += 1;
+        if (record.status === 'absent' || hrs === 0) {
+          monthMap[mKey].absentDays += 1;
+        } else {
+          monthMap[mKey].presentDays += 1;
+          if (hrs > 8) {
+            monthMap[mKey].overtimeHours += (hrs - 8);
+          }
+        }
+      }
+    });
+
+    const rawGraphItems = Object.values(monthMap).map((m) => ({
+      ...m,
+      totalHours: Math.round(m.totalHours * 10) / 10,
+      overtimeHours: Math.round(m.overtimeHours * 10) / 10,
+    }));
+
+    const maxMonthHours = Math.max(...rawGraphItems.map((g) => g.totalHours), 1);
+    const monthlyAttendanceGraph = rawGraphItems.map((g) => ({
+      ...g,
+      percentage: Math.min(Math.round((g.totalHours / maxMonthHours) * 100), 100),
+    }));
+
+    const totalYtdHours = Math.round(rawGraphItems.reduce((acc, g) => acc + g.totalHours, 0) * 10) / 10;
+
     // Leave Balances
     const leaveAllocations = await TimeOffAllocation.find({
       employeeId,
@@ -142,6 +201,8 @@ const getDashboard = async (req, res, next) => {
         totalHoursWorked: totalWorkedHoursThisMonth,
         overtimeHours: totalOvertimeThisMonth,
       },
+      monthlyAttendanceGraph,
+      totalYtdHours,
       leaveBalances: leaveAllocations.map((alloc) => ({
         id: alloc._id,
         typeName: alloc.timeOffTypeId ? alloc.timeOffTypeId.name : 'Leave',
