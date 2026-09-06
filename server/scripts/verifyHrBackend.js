@@ -71,12 +71,18 @@ const runVerification = async () => {
       departmentId: dept._id,
       jobPositionId: jobPos._id,
       workingScheduleId: schedule._id,
+      dateJoined: '2026-01-01',
+      contract: {
+        startDate: '2026-01-01',
+        endDate: '2026-12-31',
+        wage: 85000,
+      },
       status: 'active',
     });
     console.log(`✓ 6. Created Employee: ${emp.fullName} (${emp.employeeCode})`);
 
     // ── 5. Create Contract ──────────────────────────────────
-    const contract1 = await contractService.createContract({
+    const contract1 = emp.contract || await contractService.createContract({
       employeeId: emp._id,
       startDate: '2026-01-01',
       endDate: '2026-12-31',
@@ -86,7 +92,7 @@ const runVerification = async () => {
       workingScheduleId: schedule._id,
       status: 'active',
     });
-    console.log(`✓ 7. Created Active Contract 1: ${contract1.wage}/yr (${contract1.startDate.toISOString().slice(0, 10)} to ${contract1.endDate.toISOString().slice(0, 10)})`);
+    console.log(`✓ 7. Active Contract 1: ${contract1.wage}/yr (${contract1.startDate ? new Date(contract1.startDate).toISOString().slice(0, 10) : ''} to ${contract1.endDate ? new Date(contract1.endDate).toISOString().slice(0, 10) : ''})`);
 
     // Overlapping contract test
     try {

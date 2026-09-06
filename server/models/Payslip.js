@@ -60,6 +60,7 @@ const payslipWarningSchema = new mongoose.Schema(
         'MISSING_CONTRACT',
         'OVERLAPPING_CONTRACT',
         'DUPLICATE_PAYSLIP',
+        'ALREADY_PAID',
         'MISSING_SCHEDULE',
         'MISSING_CHECKOUT',
         'ATTENDANCE_INCOMPLETE',

@@ -244,19 +244,19 @@ const computePayrun = async (payrunId, computedBy = null) => {
     // ── Check Duplicate Payment (Employee Already Paid for Period) ──
     const existingPaidPayslip = await Payslip.findOne({
       employee: employee._id,
-      state: 'Paid',
+      state: { $in: ['Paid', 'Validated'] },
       payrun: { $ne: payrun._id },
       periodStart: { $lte: payrun.periodEnd },
       periodEnd: { $gte: payrun.periodStart },
     });
 
     if (existingPaidPayslip) {
-      allWarnings.push({
-        type: 'ALREADY_PAID',
-        message: `Employee ${employee.fullName} was already paid for period ${existingPaidPayslip.periodStart ? new Date(existingPaidPayslip.periodStart).toISOString().slice(0, 10) : ''} to ${existingPaidPayslip.periodEnd ? new Date(existingPaidPayslip.periodEnd).toISOString().slice(0, 10) : ''}. Skipped duplicate payment.`,
-        severity: 'Error',
-        isBlocking: true,
+      skipped.push({
+        employeeId: employee._id,
+        employeeName: employee.fullName,
+        reason: `Employee ${employee.fullName} was already paid for period ${existingPaidPayslip.periodStart ? new Date(existingPaidPayslip.periodStart).toISOString().slice(0, 10) : ''} to ${existingPaidPayslip.periodEnd ? new Date(existingPaidPayslip.periodEnd).toISOString().slice(0, 10) : ''}. Skipped duplicate payment.`,
       });
+      continue; // Skip creating a duplicate / $0.00 payslip
     }
 
     // ── Step B: Resolve Salary Structure ────────────────────
@@ -559,10 +559,18 @@ const getPayslipById = async (id) => {
 /**
  * Get all payslips across all payruns (HR view).
  */
-const getAllPayslips = async ({ search = '', state = '', page = 1, limit = 100, skip = 0 } = {}) => {
+const getAllPayslips = async ({ search = '', state = '', periodStart = '', periodEnd = '', page = 1, limit = 500, skip = 0 } = {}) => {
   const query = {};
   if (state && state !== 'ALL') {
-    query.state = state;
+    if (state.includes(',')) {
+      query.state = { $in: state.split(',').map((s) => s.trim()) };
+    } else {
+      query.state = state;
+    }
+  }
+  if (periodStart && periodEnd) {
+    query.periodStart = { $lte: new Date(periodEnd) };
+    query.periodEnd = { $gte: new Date(periodStart) };
   }
   if (search) {
     const regex = new RegExp(search.trim(), 'i');

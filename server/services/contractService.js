@@ -110,12 +110,28 @@ const getContracts = async ({ employeeId, status, durationType, search, startDat
   if (status) query.status = status;
   if (durationType) query.durationType = durationType;
 
-  if (search) {
+  if (search && search.trim() !== '') {
     const searchRegex = new RegExp(search.trim(), 'i');
+
+    const matchingEmployees = await Employee.find({
+      $or: [
+        { fullName: searchRegex },
+        { firstName: searchRegex },
+        { lastName: searchRegex },
+        { email: searchRegex },
+        { employeeCode: searchRegex },
+      ],
+    })
+      .select('_id')
+      .lean();
+
+    const matchingEmpIds = matchingEmployees.map((emp) => emp._id);
+
     query.$or = [
       { contractCode: searchRegex },
       { durationType: searchRegex },
       { workLocation: searchRegex },
+      { employeeId: { $in: matchingEmpIds } },
     ];
   }
 

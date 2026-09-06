@@ -51,10 +51,9 @@ const calculateTotalWeeklyHours = (lines) => {
       throw err;
     }
 
-    if (endMins <= startMins) {
-      const err = new Error(`endTime (${line.endTime}) must be greater than startTime (${line.startTime}) on ${day}`);
-      err.statusCode = 400;
-      throw err;
+    let effectiveEndMins = endMins;
+    if (effectiveEndMins <= startMins) {
+      effectiveEndMins += 24 * 60; // Overnight shift crossing midnight
     }
 
     const breakMins = parseInt(line.breakMinutes, 10) || 0;
@@ -64,7 +63,7 @@ const calculateTotalWeeklyHours = (lines) => {
       throw err;
     }
 
-    const shiftDuration = endMins - startMins - breakMins;
+    const shiftDuration = effectiveEndMins - startMins - breakMins;
     if (shiftDuration < 0) {
       const err = new Error(`breakMinutes exceeds shift duration on ${day}`);
       err.statusCode = 400;
@@ -142,12 +141,11 @@ const DEFAULT_IT_SCHEDULES = [
 ];
 
 const seedITSchedulesIfMissing = async () => {
-  for (const sched of DEFAULT_IT_SCHEDULES) {
-    await WorkingSchedule.updateOne(
-      { name: sched.name },
-      { $setOnInsert: sched },
-      { upsert: true }
-    );
+  const count = await WorkingSchedule.countDocuments();
+  if (count === 0) {
+    for (const sched of DEFAULT_IT_SCHEDULES) {
+      await WorkingSchedule.create(sched);
+    }
   }
 };
 
@@ -194,16 +192,10 @@ const updateWorkingSchedule = async (id, data) => {
 };
 
 const deleteWorkingSchedule = async (id) => {
-  const [employee, contract] = await Promise.all([
-    Employee.findOne({ workingScheduleId: id }),
-    Contract.findOne({ workingScheduleId: id }),
+  await Promise.all([
+    Employee.updateMany({ workingScheduleId: id }, { $unset: { workingScheduleId: 1 } }),
+    Contract.updateMany({ workingScheduleId: id }, { $unset: { workingScheduleId: 1 } }),
   ]);
-
-  if (employee || contract) {
-    const err = new Error('Cannot delete working schedule: It is assigned to existing employees or contracts');
-    err.statusCode = 400;
-    throw err;
-  }
 
   const deleted = await WorkingSchedule.findByIdAndDelete(id);
   if (!deleted) {

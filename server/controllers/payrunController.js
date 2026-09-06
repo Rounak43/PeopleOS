@@ -13,7 +13,7 @@ const { sendSuccess, sendError } = require('../utils/apiResponse');
 const getPayruns = async (req, res, next) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+    const limit = Math.min(parseInt(req.query.limit) || 100, 500);
     const skip = (page - 1) * limit;
 
     const result = await payrunService.getPayruns({ page, limit, skip });
@@ -160,7 +160,7 @@ const deletePayrun = async (req, res, next) => {
 const getAllPayslips = async (req, res, next) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = Math.min(parseInt(req.query.limit) || 100, 200);
+    const limit = Math.min(parseInt(req.query.limit) || 500, 1000);
     const skip = (page - 1) * limit;
 
     const result = await payrunService.getAllPayslips({

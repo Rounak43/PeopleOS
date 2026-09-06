@@ -155,15 +155,50 @@ const seedSalaryStructure = async () => {
     active: true,
   });
 
+  // Attendance Rules (Overtime & Undertime)
+  const ruleOVERTIME = await SalaryRule.create({
+    code: 'OVERTIME',
+    name: 'Overtime Allowance (1.5x Rate)',
+    category: 'Allowance',
+    sequence: 45,
+    amountType: 'Formula',
+    formula: 'OT_PAY',
+    isDeduction: false,
+    active: true,
+  });
+
+  const ruleUNDERTIME = await SalaryRule.create({
+    code: 'UNDERTIME',
+    name: 'Undertime / Short Hours Deduction',
+    category: 'Deduction',
+    sequence: 75,
+    amountType: 'Formula',
+    formula: 'UNDERTIME_DED',
+    isDeduction: true,
+    active: true,
+  });
+
   // Group into a Standard Monthly structure
   const structure = await SalaryStructure.create({
     name: 'Standard Monthly Payroll',
     code: 'STANDARD_MONTHLY',
-    description: 'Standard Indian payroll: Basic 50%, HRA 25%, Conveyance 15%, SA 10%, PF 12% of Basic, ESI (if applicable), TDS (slab-based).',
-    rules: [ruleBasic._id, ruleHRA._id, ruleCONV._id, ruleSA._id, ruleGROSS._id, rulePF._id, ruleESI._id, ruleTDS_HIGH._id, ruleTDS_MED._id],
+    description: 'Standard payroll: Basic 50%, HRA 25%, Conveyance 15%, SA 10%, Overtime Allowance, Undertime Deduction, PF 12% of Basic, ESI (if applicable), TDS (slab-based).',
+    rules: [
+      ruleBasic._id,
+      ruleHRA._id,
+      ruleCONV._id,
+      ruleSA._id,
+      ruleOVERTIME._id,
+      ruleGROSS._id,
+      rulePF._id,
+      ruleESI._id,
+      ruleUNDERTIME._id,
+      ruleTDS_HIGH._id,
+      ruleTDS_MED._id,
+    ],
   });
 
-  console.log('[Seed] ✓ SalaryStructure "Standard Monthly Payroll" seeded with 9 rules.');
+  console.log('[Seed] ✓ SalaryStructure "Standard Monthly Payroll" seeded with 11 rules (including BASIC & Attendance rules).');
   return structure;
 };
 

@@ -136,7 +136,7 @@ const createDepartment = async (data) => {
   return await department.save();
 };
 
-const getDepartments = async ({ search, page = 1, limit = 20, skip = 0 }) => {
+const getDepartments = async ({ search, page = 1, limit = 50, skip = 0 }) => {
   const query = {};
   if (search) {
     query.$or = [
@@ -155,8 +155,26 @@ const getDepartments = async ({ search, page = 1, limit = 20, skip = 0 }) => {
     Department.countDocuments(query),
   ]);
 
+  // Aggregate exact active employee counts for each department from MongoDB
+  const deptIds = items.map((d) => d._id);
+  const empCounts = await Employee.aggregate([
+    { $match: { departmentId: { $in: deptIds }, status: 'active' } },
+    { $group: { _id: '$departmentId', count: { $sum: 1 } } },
+  ]);
+
+  const countMap = {};
+  empCounts.forEach((c) => {
+    countMap[c._id.toString()] = c.count;
+  });
+
+  const itemsWithCounts = items.map((d) => {
+    const doc = d.toObject();
+    doc.employeeCount = countMap[d._id.toString()] || 0;
+    return doc;
+  });
+
   return {
-    items,
+    items: itemsWithCounts,
     pagination: buildPaginationMeta(page, limit, total),
   };
 };

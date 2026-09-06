@@ -141,30 +141,36 @@ const createEmployee = async (data) => {
     console.error('Non-critical: User account auto-provisioning warning:', userErr.message);
   }
 
-  // If initial contract data is provided, create the initial contract referencing saved employee
-  if (contractData && contractData.startDate && contractData.wage !== undefined) {
+  // ALWAYS provision an active contract so newly created employees are ready for payroll
+  try {
     const contractService = require('./contractService');
+    const defaultStartDate = contractData?.startDate
+      ? new Date(contractData.startDate)
+      : (savedEmployee.dateJoined ? new Date(savedEmployee.dateJoined) : new Date());
+
     const savedContract = await contractService.createContract({
       employeeId: savedEmployee._id,
       departmentId: savedEmployee.departmentId,
       jobPositionId: savedEmployee.jobPositionId,
-      workingScheduleId: contractData.workingScheduleId || savedEmployee.workingScheduleId,
-      startDate: contractData.startDate,
-      endDate: contractData.endDate || null,
-      durationType: contractData.durationType || 'Permanent',
-      wage: contractData.wage,
-      wageFrequency: contractData.wageFrequency || 'Monthly',
-      salaryStructureId: contractData.salaryStructureId || null,
-      workLocation: contractData.workLocation || 'Hybrid (3 Days Office)',
-      probationPeriodMonths: Number(contractData.probationPeriodMonths ?? 3),
-      noticePeriodDays: Number(contractData.noticePeriodDays ?? 30),
-      overtimeAllowed: contractData.overtimeAllowed !== undefined ? Boolean(contractData.overtimeAllowed) : true,
+      workingScheduleId: contractData?.workingScheduleId || savedEmployee.workingScheduleId || null,
+      startDate: defaultStartDate,
+      endDate: contractData?.endDate || null,
+      durationType: contractData?.durationType || 'Permanent',
+      wage: contractData?.wage !== undefined ? Number(contractData.wage) : 50000,
+      wageFrequency: contractData?.wageFrequency || 'Monthly',
+      salaryStructureId: contractData?.salaryStructureId || null,
+      workLocation: contractData?.workLocation || 'Hybrid (3 Days Office)',
+      probationPeriodMonths: Number(contractData?.probationPeriodMonths ?? 3),
+      noticePeriodDays: Number(contractData?.noticePeriodDays ?? 30),
+      overtimeAllowed: contractData?.overtimeAllowed !== undefined ? Boolean(contractData.overtimeAllowed) : true,
       status: 'active',
     });
 
     const result = savedEmployee.toObject();
     result.contract = savedContract;
     return result;
+  } catch (contractErr) {
+    console.error('Non-critical: Contract auto-provision warning:', contractErr.message);
   }
 
   return savedEmployee;

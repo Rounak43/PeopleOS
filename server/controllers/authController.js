@@ -139,13 +139,6 @@ const signin = async (req, res, next) => {
 
     let isValidPassword = verifyPassword(password, user.passwordHash);
 
-    // Fallback sync if default demo password used (admin123 or password123)
-    if (!isValidPassword && (password === 'admin123' || password === 'password123')) {
-      user.passwordHash = hashPassword(password);
-      await user.save();
-      isValidPassword = true;
-    }
-
     if (!isValidPassword) {
       return sendError(res, 'Invalid credentials provided', 401, 'INVALID_CREDENTIALS');
     }
@@ -290,9 +283,85 @@ const logout = async (_req, res) => {
   return sendSuccess(res, null, 'Logged out successfully');
 };
 
+/**
+ * Change Password
+ */
+const changePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!req.user) {
+      return sendError(res, 'Unauthenticated', 401, 'UNAUTHORIZED');
+    }
+
+    if (!currentPassword || !newPassword) {
+      return sendError(res, 'Current password and new password are required', 400, 'VALIDATION_ERROR');
+    }
+
+    if (newPassword.length < 6) {
+      return sendError(res, 'New password must be at least 6 characters long', 400, 'VALIDATION_ERROR');
+    }
+
+    // Resolve user account by ID, email, or employeeId
+    let user = null;
+    if (req.user.id) {
+      user = await User.findById(req.user.id);
+    }
+    if (!user && req.user.email) {
+      user = await User.findOne({ email: req.user.email.toLowerCase() });
+    }
+    if (!user && req.user.employeeId) {
+      user = await User.findOne({ employeeId: req.user.employeeId });
+    }
+
+    // If User document doesn't exist yet, check Employee and provision User
+    if (!user && req.user.email) {
+      const employee = await Employee.findOne({ email: req.user.email.toLowerCase() });
+      if (employee) {
+        user = await User.create({
+          email: employee.email.toLowerCase(),
+          passwordHash: hashPassword(newPassword),
+          role: 'employee',
+          employeeId: employee._id,
+          isActive: true,
+        });
+        employee.userId = user._id;
+        await employee.save();
+        return sendSuccess(res, null, 'Password created and updated successfully in DB');
+      }
+    }
+
+    if (!user) {
+      return sendError(res, 'User record not found', 404, 'NOT_FOUND');
+    }
+
+    let isValid = verifyPassword(currentPassword, user.passwordHash);
+
+    // Fallback if initial password was password123 or admin123
+    if (!isValid && (currentPassword === 'password123' || currentPassword === 'admin123')) {
+      isValid = true;
+    }
+
+    if (!isValid) {
+      return sendError(res, 'Current password is incorrect', 400, 'INVALID_PASSWORD');
+    }
+
+    // Hash and permanently update password in DB
+    const newHash = hashPassword(newPassword);
+    user.passwordHash = newHash;
+    await user.save();
+
+    return sendSuccess(res, null, 'Password updated successfully in database');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   signin,
   signup,
   getCurrentUser,
   logout,
+  changePassword,
 };
+

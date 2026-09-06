@@ -183,6 +183,28 @@ const executeSalaryRules = async ({
     monthlyWage = wage * 2;
   }
 
+  // ─── Attendance & Hourly Rate Calculations ───────────────────
+  const totalPeriodDays = workingDaysInPeriod || 20;
+  const standardPeriodHours = totalPeriodDays * 8; // 8 hrs per standard working day
+  const hourlyRate = standardPeriodHours > 0 ? (monthlyWage / standardPeriodHours) : (monthlyWage / 160);
+
+  // Overall Total Hours Worked by Employee in Period (Regular + Overtime)
+  const totalHoursWorkedInPeriod = (regularHours || 0) + (overtimeHours || 0);
+
+  // Overall Period Net Calculation (Mutual Exclusion: either Overall Net Overtime OR Overall Net Undertime)
+  let netOvertimeHours = 0;
+  let netUndertimeHours = 0;
+  let overtimePay = 0;
+  let undertimeDeduction = 0;
+
+  if (totalHoursWorkedInPeriod > standardPeriodHours) {
+    netOvertimeHours = Math.round((totalHoursWorkedInPeriod - standardPeriodHours) * 100) / 100;
+    overtimePay = Math.round(netOvertimeHours * (hourlyRate * 1.5) * 100) / 100;
+  } else if (totalHoursWorkedInPeriod < standardPeriodHours) {
+    netUndertimeHours = Math.round((standardPeriodHours - totalHoursWorkedInPeriod) * 100) / 100;
+    undertimeDeduction = Math.round(netUndertimeHours * hourlyRate * 100) / 100;
+  }
+
   // Effective wage after deducting unpaid leave days
   const attendanceFactor = workingDaysInPeriod > 0
     ? Math.max(0, (workedDays + (workingDaysInPeriod - workedDays - unpaidLeaveDays)) / workingDaysInPeriod)
@@ -195,7 +217,12 @@ const executeSalaryRules = async ({
     DAYS: workedDays,
     TOTAL_DAYS: workingDaysInPeriod,
     HOURS: regularHours,
-    OT_HOURS: overtimeHours,
+    TOTAL_WORKED_HOURS: totalHoursWorkedInPeriod,
+    OT_HOURS: netOvertimeHours,
+    UNDERTIME_HOURS: netUndertimeHours,
+    HOURLY_RATE: Math.round(hourlyRate * 100) / 100,
+    OT_PAY: overtimePay,
+    UNDERTIME_DED: undertimeDeduction,
     UNPAID_DAYS: unpaidLeaveDays,
     ATTENDANCE_FACTOR: attendanceFactor,
   };
@@ -252,10 +279,41 @@ const executeSalaryRules = async ({
     }
   }
 
+  // ─── Inject Net Overtime Allowance line if overall net overtime > 0 ───
+  if (netOvertimeHours > 0 && !lines.some((l) => l.code === 'OVERTIME' || l.code === 'OT')) {
+    lines.push({
+      salaryRuleId: null,
+      code: 'OVERTIME',
+      name: `Overtime Allowance (${netOvertimeHours.toFixed(1)} hrs @ 1.5x)`,
+      category: 'Allowance',
+      sequence: 45,
+      amount: overtimePay,
+    });
+  }
+
+  // ─── Inject Net Undertime Deduction line if overall net undertime > 0 ─
+  if (netUndertimeHours > 0 && !lines.some((l) => l.code === 'UNDERTIME' || l.code === 'SHORT_HOURS')) {
+    lines.push({
+      salaryRuleId: null,
+      code: 'UNDERTIME',
+      name: `Undertime / Short Hours Deduction (${netUndertimeHours.toFixed(1)} hrs)`,
+      category: 'Deduction',
+      sequence: 75,
+      amount: -undertimeDeduction,
+    });
+  }
+
   // ─── Compute totals from lines ────────────────────────────────
-  const grossSalary = lines
-    .filter((l) => l.amount > 0)
+  const baseEarningsSum = lines
+    .filter((l) => l.amount > 0 && l.code !== 'GROSS')
     .reduce((sum, l) => sum + l.amount, 0);
+
+  const grossLine = lines.find((l) => l.code === 'GROSS');
+  if (grossLine) {
+    grossLine.amount = Math.round(baseEarningsSum * 100) / 100;
+  }
+
+  const grossSalary = baseEarningsSum;
 
   const totalDeductions = lines
     .filter((l) => l.amount < 0)

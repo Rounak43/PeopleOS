@@ -31,11 +31,15 @@ const runTest = async () => {
     };
   };
 
-  // Test 1: Sign In with Employee ID (EMP-001)
-  console.log('\n--- Test 1: Employee ID Sign In (EMP-001) ---');
+  const User = require('../models/User');
+  const empUser = await User.findOne({ role: 'employee' }).populate('employeeId');
+  const testCode = empUser?.employeeId?.employeeCode || empUser?.email || 'OS26EN001';
+
+  // Test 1: Sign In with Employee ID
+  console.log(`\n--- Test 1: Employee ID Sign In (${testCode}) ---`);
   const req1 = {
     body: {
-      identifier: 'EMP-001',
+      identifier: testCode,
       password: 'password123',
     },
   };
@@ -68,12 +72,19 @@ const runTest = async () => {
   }
 
   // Clear any existing attendance for today for clean check-in test
+  const empId = (typeof authenticatedUser.employeeId === 'object' && authenticatedUser.employeeId?._id)
+    ? authenticatedUser.employeeId._id
+    : (authenticatedUser.employeeId || authenticatedUser._id);
+
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
   const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
   await Attendance.deleteMany({
-    employeeId: authenticatedUser.employeeId,
-    checkIn: { $gte: startOfToday, $lte: endOfToday },
+    employeeId: empId,
+    $or: [
+      { checkIn: { $gte: startOfToday, $lte: endOfToday } },
+      { checkOut: null },
+    ],
   });
 
   // Test 3: Check In
@@ -166,11 +177,25 @@ const runTest = async () => {
     throw new Error('Test 9 failed');
   }
 
-  // Test 10: Sign In with Admin Account (admin@peopleos.local)
+  // Test 10: Sign In with Admin Account
   console.log('\n--- Test 10: Admin Sign In ---');
+  const { hashPassword } = require('../utils/password');
+  let adminUser = await User.findOne({ role: 'admin' });
+  if (!adminUser) {
+    adminUser = await User.create({
+      email: 'admin@peopleos.local',
+      passwordHash: hashPassword('admin123'),
+      role: 'admin',
+      isActive: true,
+    });
+  } else {
+    adminUser.passwordHash = hashPassword('admin123');
+    await adminUser.save();
+  }
+
   const req10 = {
     body: {
-      email: 'admin@peopleos.local',
+      email: adminUser.email,
       password: 'admin123',
     },
   };

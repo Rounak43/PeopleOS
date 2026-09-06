@@ -43,8 +43,36 @@ const resolveContract = async (employeeId, periodStart, periodEnd) => {
     .populate('workingScheduleId')
     .lean();
 
-  // Case 1: No applicable contract
+  // Case 1: No applicable contract -> Auto-provision active contract for employee
   if (applicableContracts.length === 0) {
+    const Employee = require('../../models/Employee');
+    const contractService = require('../contractService');
+    const emp = await Employee.findById(employeeId).lean();
+    if (emp) {
+      const newContract = await contractService.createContract({
+        employeeId: emp._id,
+        departmentId: emp.departmentId || null,
+        jobPositionId: emp.jobPositionId || null,
+        workingScheduleId: emp.workingScheduleId || null,
+        startDate: emp.dateJoined ? new Date(emp.dateJoined) : new Date(periodStart),
+        wage: 50000,
+        wageFrequency: 'Monthly',
+        durationType: 'Permanent',
+        status: 'active',
+      });
+
+      return {
+        contract: newContract.toObject ? newContract.toObject() : newContract,
+        salaryStructure: null,
+        warnings: [{
+          type: 'AUTO_PROVISIONED_CONTRACT',
+          message: `Auto-provisioned default active contract for employee.`,
+          severity: 'Warning',
+          isBlocking: false,
+        }],
+      };
+    }
+
     const err = new Error(
       `No active contract found for employee ${employeeId} covering period ${periodStart.toISOString().slice(0, 10)} to ${periodEnd.toISOString().slice(0, 10)}`
     );
